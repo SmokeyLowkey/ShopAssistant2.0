@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "email_messages" ALTER COLUMN "to" SET NOT NULL,
+ALTER COLUMN "to" SET DATA TYPE TEXT;

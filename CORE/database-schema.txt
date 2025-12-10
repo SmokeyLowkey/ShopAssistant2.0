@@ -1,0 +1,794 @@
+# Construction Fleet Management Dashboard - Database Schema
+# Prisma Schema for PostgreSQL - MULTI-TENANT READY
+
+# This schema supports a comprehensive construction vehicle parts sourcing SaaS platform
+# with fleet management, parts inventory, supplier management, orders, and maintenance tracking.
+# DESIGNED FOR MULTI-TENANT ARCHITECTURE with proper data isolation.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+# ================================
+# MULTI-TENANT FOUNDATION
+# ================================
+
+model Organization {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique // URL-friendly identifier
+  domain            String?  @unique // Custom domain support
+  
+  # Subscription & Billing
+  subscriptionTier  SubscriptionTier @default(BASIC)
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  billingEmail      String?
+  
+  # Settings & Limits
+  maxUsers          Int      @default(10)
+  maxVehicles       Int      @default(50)
+  settings          Json?    // Organization-specific settings
+  
+  # Branding
+  logo              String?
+  primaryColor      String?  @default("#2563eb")
+  
+  # Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  # Relations
+  users             User[]
+  vehicles          Vehicle[]
+  parts             Part[]
+  suppliers         Supplier[]
+  orders            Order[]
+  maintenanceRecords MaintenanceRecord[]
+  costSavingsRecords CostSavingsRecord[]
+  activityLogs      ActivityLog[]
+  chatConversations ChatConversation[]
+  
+  @@map("organizations")
+}
+
+enum SubscriptionTier {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  TRIAL
+}
+
+# ================================
+# USER MANAGEMENT & AUTHENTICATION
+# ================================
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String?
+  role              UserRole @default(USER)
+  phone             String?
+  avatar            String?
+  isActive          Boolean  @default(true)
+  
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String
+  
+  # Preferences
+  notifications     Json?    // Notification preferences
+  theme             String   @default("light")
+  timezone          String   @default("UTC")
+  
+  # Timestamps
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime?
+  
+  # Relations
+  vehicles          Vehicle[]
+  orders            Order[]
+  maintenanceRecords MaintenanceRecord[]
+  chatConversations ChatConversation[]
+  
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  USER
+}
+
+# ================================
+# VEHICLE FLEET MANAGEMENT
+# ================================
+
+model Vehicle {
+  id                String        @id @default(cuid())
+  vehicleId         String        // CAT-001, JD-002, etc.
+  serialNumber      String        // Unique serial number field
+  make              String        // Caterpillar, John Deere, Komatsu
+  model             String        // 320D, 850K, PC200
+  year              Int
+  type              VehicleType
+  industryCategory  IndustryCategory @default(CONSTRUCTION)
+  status            VehicleStatus @default(ACTIVE)
+  
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String
+  
+  # Location & Operations
+  currentLocation   String?       // Site A - Downtown, Shop - Main
+  operatingHours    Int           @default(0)
+  healthScore       Int           @default(100) // 0-100 percentage
+  
+  # Service Information
+  lastServiceDate   DateTime?
+  nextServiceDate   DateTime?
+  serviceInterval   Int?          // Hours between services
+  
+  # Specifications
+  engineModel       String?
+  specifications    Json?         // Technical specs as JSON
+  
+  # Timestamps
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  # Relations
+  owner             User          @relation(fields: [ownerId], references: [id])
+  ownerId           String
+  maintenanceRecords MaintenanceRecord[]
+  orders            Order[]
+  alerts            VehicleAlert[]
+  
+  @@unique([organizationId, vehicleId])
+  @@unique([organizationId, serialNumber])
+  @@map("vehicles")
+}
+
+model VehicleAlert {
+  id              String      @id @default(cuid())
+  vehicle         Vehicle     @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicleId       String
+  
+  type            AlertType
+  severity        AlertSeverity
+  title           String
+  description     String?
+  isResolved      Boolean     @default(false)
+  resolvedAt      DateTime?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  @@map("vehicle_alerts")
+}
+
+enum VehicleType {
+  EXCAVATOR
+  DOZER
+  DUMP_TRUCK
+  LOADER
+  CRANE
+  GRADER
+  COMPACTOR
+  OTHER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+  RETIRED
+}
+
+enum IndustryCategory {
+  CONSTRUCTION
+  AGRICULTURE
+  FORESTRY
+}
+
+enum AlertType {
+  MAINTENANCE_DUE
+  LOW_FUEL
+  ENGINE_WARNING
+  HYDRAULIC_ISSUE
+  OVERHEATING
+  LOCATION_ALERT
+  OTHER
+}
+
+enum AlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+# ================================
+# PARTS INVENTORY MANAGEMENT
+# ================================
+
+model Part {
+  id              String      @id @default(cuid())
+  partNumber      String      // 1R-0750, 14M7296, etc.
+  description     String
+  category        String?     // Hydraulic, Engine, Electrical
+  subcategory     String?
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  
+  # Pricing & Stock
+  price           Decimal     @db.Decimal(10,2)
+  cost            Decimal?    @db.Decimal(10,2) // Cost from supplier
+  stockQuantity   Int         @default(0)
+  minStockLevel   Int         @default(0)
+  maxStockLevel   Int?
+  
+  # Physical Properties
+  weight          Decimal?    @db.Decimal(8,2)
+  dimensions      Json?       // Length, width, height
+  location        String?     // Warehouse location (A-12-3)
+  
+  # Compatibility
+  compatibility   Json?       // Compatible vehicle models
+  specifications  Json?       // Technical specifications
+  
+  # Status
+  isActive        Boolean     @default(true)
+  isObsolete      Boolean     @default(false)
+  
+  # Timestamps
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  # Relations
+  orderItems      OrderItem[]
+  maintenanceParts MaintenancePart[]
+  suppliers       PartSupplier[]
+  
+  @@unique([organizationId, partNumber])
+  @@map("parts")
+}
+
+model PartSupplier {
+  id          String   @id @default(cuid())
+  part        Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  partId      String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId  String
+  
+  supplierPartNumber String?
+  price              Decimal  @db.Decimal(10,2)
+  leadTime           Int?     // Days
+  minOrderQuantity   Int      @default(1)
+  isPreferred        Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([partId, supplierId])
+  @@map("part_suppliers")
+}
+
+# ================================
+# SUPPLIER MANAGEMENT
+# ================================
+
+model Supplier {
+  id              String         @id @default(cuid())
+  supplierId      String         // SUP-001, SUP-002
+  name            String
+  type            SupplierType
+  status          SupplierStatus @default(ACTIVE)
+  
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  
+  # Contact Information
+  contactPerson   String?
+  email           String?
+  phone           String?
+  website         String?
+  
+  # Address
+  address         String?
+  city            String?
+  state           String?
+  zipCode         String?
+  country         String?        @default("USA")
+  
+  # Performance Metrics
+  rating          Decimal?       @db.Decimal(3,2) // 0.00 to 5.00
+  deliveryRating  Decimal?       @db.Decimal(3,2)
+  qualityRating   Decimal?       @db.Decimal(3,2)
+  avgDeliveryTime Int?           // Days
+  
+  # Business Information
+  paymentTerms    String?        // Net 30, Net 60, etc.
+  taxId           String?
+  certifications  Json?          // ISO, etc.
+  specialties     Json?          // Array of specialties
+  
+  # Timestamps
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  # Relations
+  orders          Order[]
+  parts           PartSupplier[]
+  
+  @@unique([organizationId, supplierId])
+  @@map("suppliers")
+}
+
+enum SupplierType {
+  OEM_DIRECT
+  DISTRIBUTOR
+  AFTERMARKET
+  LOCAL_DEALER
+  ONLINE_RETAILER
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  SUSPENDED
+}
+
+# ================================
+# ORDER MANAGEMENT
+# ================================
+
+model Order {
+  id                String      @id @default(cuid())
+  orderNumber       String      // ORD-2024-001
+  
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String
+  
+  # Order Details
+  status            OrderStatus @default(PENDING)
+  priority          Priority    @default(MEDIUM)
+  orderDate         DateTime    @default(now())
+  expectedDelivery  DateTime?
+  actualDelivery    DateTime?
+  
+  # Financial
+  subtotal          Decimal     @db.Decimal(10,2)
+  tax               Decimal?    @db.Decimal(10,2)
+  shipping          Decimal?    @db.Decimal(10,2)
+  total             Decimal     @db.Decimal(10,2)
+  
+  # Shipping
+  trackingNumber    String?
+  shippingMethod    String?
+  shippingAddress   Json?
+  
+  # Notes
+  notes             String?
+  internalNotes     String?
+  
+  # Timestamps
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  # Relations
+  supplier          Supplier    @relation(fields: [supplierId], references: [id])
+  supplierId        String
+  vehicle           Vehicle?    @relation(fields: [vehicleId], references: [id])
+  vehicleId         String?
+  createdBy         User        @relation(fields: [createdById], references: [id])
+  createdById       String
+  orderItems        OrderItem[]
+  
+  @@unique([organizationId, orderNumber])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String  @id @default(cuid())
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId         String
+  part            Part    @relation(fields: [partId], references: [id])
+  partId          String
+  
+  quantity        Int
+  unitPrice       Decimal @db.Decimal(10,2)
+  totalPrice      Decimal @db.Decimal(10,2)
+  
+  # Status tracking
+  quantityReceived Int    @default(0)
+  isReceived      Boolean @default(false)
+  receivedDate    DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("order_items")
+}
+
+enum OrderStatus {
+  PENDING
+  PENDING_QUOTE
+  PROCESSING
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+# ================================
+# MAINTENANCE MANAGEMENT
+# ================================
+
+model MaintenanceRecord {
+  id                String            @id @default(cuid())
+  maintenanceId     String            // MAINT-001
+  
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId    String
+  
+  # Basic Information
+  type              MaintenanceType
+  status            MaintenanceStatus @default(SCHEDULED)
+  priority          Priority          @default(MEDIUM)
+  
+  # Scheduling
+  scheduledDate     DateTime
+  completedDate     DateTime?
+  estimatedHours    Decimal?          @db.Decimal(5,2)
+  actualHours       Decimal?          @db.Decimal(5,2)
+  
+  # Cost Information
+  estimatedCost     Decimal?          @db.Decimal(10,2)
+  actualCost        Decimal?          @db.Decimal(10,2)
+  laborCost         Decimal?          @db.Decimal(10,2)
+  partsCost         Decimal?          @db.Decimal(10,2)
+  
+  # Details
+  description       String
+  workPerformed     String?
+  notes             String?
+  location          String?           // Shop location
+  
+  # Technician Information
+  assignedTechnician String?
+  technicianNotes   String?
+  
+  # Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  # Relations
+  vehicle           Vehicle           @relation(fields: [vehicleId], references: [id])
+  vehicleId         String
+  createdBy         User              @relation(fields: [createdById], references: [id])
+  createdById       String
+  parts             MaintenancePart[]
+  
+  @@unique([organizationId, maintenanceId])
+  @@map("maintenance_records")
+}
+
+model MaintenancePart {
+  id                String            @id @default(cuid())
+  maintenance       MaintenanceRecord @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  maintenanceId     String
+  part              Part              @relation(fields: [partId], references: [id])
+  partId            String
+  
+  quantityUsed      Int
+  unitCost          Decimal           @db.Decimal(10,2)
+  totalCost         Decimal           @db.Decimal(10,2)
+  
+  createdAt         DateTime          @default(now())
+  
+  @@map("maintenance_parts")
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  REPAIR
+  INSPECTION
+  EMERGENCY
+  UPGRADE
+  RECALL
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+  ON_HOLD
+}
+
+# ================================
+# REPORTING & ANALYTICS
+# ================================
+
+model CostSavingsRecord {
+  id              String       @id @default(cuid())
+  month           Int          // 1-12
+  year            Int
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  
+  # Savings Data
+  totalSavings    Decimal      @db.Decimal(10,2)
+  manualCost      Decimal      @db.Decimal(10,2)
+  platformCost    Decimal      @db.Decimal(10,2)
+  savingsPercent  Decimal      @db.Decimal(5,2)
+  
+  # Metrics
+  ordersProcessed Int          @default(0)
+  avgOrderValue   Decimal?     @db.Decimal(10,2)
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@unique([organizationId, month, year])
+  @@map("cost_savings_records")
+}
+
+model ActivityLog {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String?
+  entityType  String?      // Vehicle, Order, Part, etc.
+  entityId    String?
+  userId      String?
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  
+  metadata    Json?        // Additional context data
+  
+  createdAt   DateTime     @default(now())
+  
+  @@map("activity_logs")
+}
+
+enum ActivityType {
+  VEHICLE_ADDED
+  VEHICLE_UPDATED
+  ORDER_CREATED
+  ORDER_DELIVERED
+  MAINTENANCE_SCHEDULED
+  MAINTENANCE_COMPLETED
+  PART_LOW_STOCK
+  SUPPLIER_ADDED
+  ALERT_CREATED
+  ALERT_RESOLVED
+  USER_LOGIN
+  SYSTEM_UPDATE
+  ORGANIZATION_CREATED
+  SUBSCRIPTION_UPDATED
+}
+
+# ================================
+# CHAT & AI ASSISTANT
+# ================================
+
+model ChatConversation {
+  id              String   @id @default(cuid())
+  title           String?  // Auto-generated or user-defined title
+  
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  
+  # User & Context
+  user            User     @relation(fields: [userId], references: [id])
+  userId          String
+  
+  # Conversation Context
+  context         ConversationContext @default(PARTS_SEARCH)
+  isActive        Boolean  @default(true)
+  
+  # Metadata
+  lastMessageAt   DateTime @default(now())
+  messageCount    Int      @default(0)
+  
+  # Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  # Relations
+  messages        ChatMessage[]
+  
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id              String           @id @default(cuid())
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId  String
+  
+  # Message Details
+  role            MessageRole
+  content         String
+  messageType     MessageType      @default(TEXT)
+  
+  # AI Assistant Metadata
+  model           String?          // gpt-4, claude-3, etc.
+  tokens          Int?             // Token count for billing
+  processingTime  Int?             // Response time in ms
+  
+  # Context & Actions
+  context         Json?            // Additional context data
+  actions         Json?            // Available actions (Add to Pick List, etc.)
+  
+  # Status
+  isEdited        Boolean          @default(false)
+  isDeleted       Boolean          @default(false)
+  
+  # Timestamps
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("chat_messages")
+}
+
+model ChatPickList {
+  id              String           @id @default(cuid())
+  conversation    ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId  String
+  
+  # Pick List Details
+  name            String           @default("My Pick List")
+  status          PickListStatus   @default(ACTIVE)
+  
+  # Timestamps
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  # Relations
+  items           ChatPickListItem[]
+  
+  @@map("chat_pick_lists")
+}
+
+model ChatPickListItem {
+  id              String        @id @default(cuid())
+  pickList        ChatPickList  @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+  pickListId      String
+  
+  # Part Information
+  partNumber      String
+  description     String
+  quantity        Int           @default(1)
+  estimatedPrice  Decimal?      @db.Decimal(10,2)
+  
+  # Source Context
+  messageId       String?       // Reference to the chat message that added this
+  addedFromChat   Boolean       @default(true)
+  
+  # Status
+  isOrdered       Boolean       @default(false)
+  orderId         String?       // Reference to actual order if converted
+  
+  # Timestamps
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@map("chat_pick_list_items")
+}
+
+enum ConversationContext {
+  PARTS_SEARCH
+  MAINTENANCE_HELP
+  VEHICLE_DIAGNOSTICS
+  SUPPLIER_INQUIRY
+  GENERAL_SUPPORT
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  PART_RECOMMENDATION
+  MAINTENANCE_SCHEDULE
+  ORDER_SUMMARY
+  ERROR_MESSAGE
+  SYSTEM_NOTIFICATION
+}
+
+enum PickListStatus {
+  ACTIVE
+  CONVERTED_TO_ORDER
+  ARCHIVED
+}
+
+# ================================
+# SYSTEM CONFIGURATION
+# ================================
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("system_settings")
+}
+
+# ================================
+# INDEXES FOR PERFORMANCE
+# ================================
+
+// Multi-tenant optimized indexes
+// @@index([organizationId]) on all tenant-scoped tables
+// @@index([organizationId, vehicleId]) on Vehicle
+// @@index([organizationId, partNumber]) on Part  
+// @@index([organizationId, orderNumber]) on Order
+// @@index([organizationId, status]) on Order
+// @@index([organizationId, scheduledDate]) on MaintenanceRecord
+// @@index([organizationId, createdAt]) on ActivityLog
+// @@index([organizationId, type, createdAt]) on ActivityLog
+// @@index([organizationId, userId, isActive]) on ChatConversation
+// @@index([conversationId, createdAt]) on ChatMessage
+// @@index([conversationId, role]) on ChatMessage
+// @@index([pickListId, isOrdered]) on ChatPickListItem
+
+# ================================
+# MULTI-TENANT IMPLEMENTATION NOTES
+# ================================
+
+// 1. ROW LEVEL SECURITY (RLS) Implementation:
+//    - Enable RLS on all tenant-scoped tables
+//    - Create policies to filter by organizationId
+//    - Use SET LOCAL app.current_organization_id = ? in queries
+
+// 2. APPLICATION LEVEL SECURITY:
+//    - Always include organizationId in WHERE clauses
+//    - Use middleware to inject organizationId automatically
+//    - Validate user belongs to organization on every request
+
+// 3. SUBSCRIPTION LIMITS:
+//    - Enforce maxUsers, maxVehicles at application level
+//    - Track usage metrics per organization
+//    - Implement billing integration
+
+// 4. DATA ISOLATION:
+//    - All business data is scoped to organizationId
+//    - Unique constraints are organization-scoped
+//    - Cascade deletes ensure clean data removal
+
+// 5. PERFORMANCE CONSIDERATIONS:
+//    - All queries should include organizationId for index usage
+//    - Consider partitioning large tables by organizationId
+//    - Monitor query performance with tenant-specific indexes

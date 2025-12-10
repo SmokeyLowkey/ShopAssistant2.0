@@ -1,0 +1,3 @@
+1. implement toast notifications for sing in page
+2. fix the chat bubble issue
+

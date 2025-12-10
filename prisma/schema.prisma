@@ -1,0 +1,1029 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id                    String              @id @default(cuid())
+  name                  String
+  slug                  String              @unique
+  domain                String?             @unique
+  subscriptionTier      SubscriptionTier    @default(BASIC)
+  subscriptionStatus    SubscriptionStatus  @default(ACTIVE)
+  billingEmail          String?
+  maxUsers              Int                 @default(10)
+  maxVehicles           Int                 @default(50)
+  settings              Json?
+  logo                  String?
+  primaryColor          String?             @default("#2563eb")
+  passwordPolicy        Json?
+  sessionTimeoutMinutes Int                 @default(60)
+  requireTwoFactor      Boolean             @default(false)
+  allowedEmailDomains   String[]            @default([])
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  activityLogs          ActivityLog[]
+  apiKeys               ApiKey[]
+  chatConversations     ChatConversation[]
+  costSavingsRecords    CostSavingsRecord[]
+  emailThreads          EmailThread[]
+  maintenanceRecords    MaintenanceRecord[]
+  orders                Order[]
+  parts                 Part[]
+  quoteRequests         QuoteRequest[]
+  securityAuditLogs     SecurityAuditLog[]
+  suppliers             Supplier[]
+  users                 User[]
+  vehicles              Vehicle[]
+
+  @@index([slug])
+  @@map("organizations")
+}
+
+model User {
+  id                   String              @id @default(cuid())
+  email                String              @unique
+  name                 String?
+  role                 UserRole            @default(USER)
+  phone                String?
+  avatar               String?
+  isActive             Boolean             @default(true)
+  password             String?
+  emailVerified        DateTime?
+  isEmailVerified      Boolean             @default(false)
+  twoFactorEnabled     Boolean             @default(false)
+  twoFactorSecret      String?
+  organizationId       String
+  notifications        Json?
+  theme                String              @default("light")
+  timezone             String              @default("UTC")
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  lastLoginAt          DateTime?
+  accounts             Account[]
+  chatConversations    ChatConversation[]
+  emailThreadsCreated  EmailThread[]
+  maintenanceRecords   MaintenanceRecord[]
+  orders               Order[]
+  resetToken           PasswordReset?
+  quoteRequestsCreated QuoteRequest[]
+  sessions             Session[]
+  organization         Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicles             Vehicle[]
+
+  @@index([email])
+  @@index([organizationId, email])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  userAgent    String?
+  ipAddress    String?
+  lastActive   DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionToken])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expires   DateTime
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Vehicle {
+  id                 String              @id @default(cuid())
+  vehicleId          String
+  serialNumber       String
+  make               String
+  model              String
+  year               Int
+  type               VehicleType
+  industryCategory   IndustryCategory    @default(CONSTRUCTION)
+  status             VehicleStatus       @default(ACTIVE)
+  organizationId     String
+  currentLocation    String?
+  operatingHours     Int                 @default(0)
+  healthScore        Int                 @default(100)
+  lastServiceDate    DateTime?
+  nextServiceDate    DateTime?
+  serviceInterval    Int?
+  engineModel        String?
+  specifications     Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  ownerId            String
+  pickLists          ChatPickList[]
+  maintenanceRecords MaintenanceRecord[]
+  orders             Order[]
+  quoteRequests      QuoteRequest[]
+  alerts             VehicleAlert[]
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner              User                @relation(fields: [ownerId], references: [id])
+
+  @@unique([organizationId, vehicleId])
+  @@unique([organizationId, serialNumber])
+  @@index([organizationId])
+  @@index([organizationId, vehicleId])
+  @@map("vehicles")
+}
+
+model VehicleAlert {
+  id          String        @id @default(cuid())
+  vehicleId   String
+  type        AlertType
+  severity    AlertSeverity
+  title       String
+  description String?
+  isResolved  Boolean       @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  vehicle     Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@map("vehicle_alerts")
+}
+
+model Part {
+  id                 String             @id @default(cuid())
+  partNumber         String
+  description        String
+  category           String?
+  subcategory        String?
+  organizationId     String
+  price              Decimal            @db.Decimal(10, 2)
+  cost               Decimal?           @db.Decimal(10, 2)
+  stockQuantity      Int                @default(0)
+  minStockLevel      Int                @default(0)
+  maxStockLevel      Int?
+  weight             Decimal?           @db.Decimal(8, 2)
+  dimensions         Json?
+  location           String?
+  compatibility      Json?
+  specifications     Json?
+  isActive           Boolean            @default(true)
+  isObsolete         Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  supersededBy       String?
+  supersedes         String?
+  supersessionDate   DateTime?
+  supersessionNotes  String?
+  supplierPartNumber String?
+  maintenanceParts   MaintenancePart[]
+  orderItems         OrderItem[]
+  suppliers          PartSupplier[]
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quoteItems         QuoteRequestItem[]
+
+  @@unique([organizationId, partNumber])
+  @@index([organizationId])
+  @@index([organizationId, partNumber])
+  @@map("parts")
+}
+
+model PartSupplier {
+  id                 String   @id @default(cuid())
+  partId             String
+  supplierId         String
+  supplierPartNumber String?
+  price              Decimal  @db.Decimal(10, 2)
+  leadTime           Int?
+  minOrderQuantity   Int      @default(1)
+  isPreferred        Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  part               Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  supplier           Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([partId, supplierId])
+  @@map("part_suppliers")
+}
+
+model Supplier {
+  id                       String                    @id @default(cuid())
+  supplierId               String
+  name                     String
+  type                     SupplierType
+  status                   SupplierStatus            @default(ACTIVE)
+  organizationId           String
+  contactPerson            String?
+  email                    String?
+  phone                    String?
+  website                  String?
+  address                  String?
+  city                     String?
+  state                    String?
+  zipCode                  String?
+  country                  String?                   @default("USA")
+  rating                   Decimal?                  @db.Decimal(3, 2)
+  deliveryRating           Decimal?                  @db.Decimal(3, 2)
+  qualityRating            Decimal?                  @db.Decimal(3, 2)
+  avgDeliveryTime          Int?
+  paymentTerms             String?
+  taxId                    String?
+  certifications           Json?
+  specialties              Json?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  auxiliaryEmails          AuxiliaryEmail[]
+  emailThreads             EmailThread[]
+  orders                   Order[]
+  parts                    PartSupplier[]
+  quoteRequestEmailThreads QuoteRequestEmailThread[]
+  quoteRequestItems        QuoteRequestItem[]
+  selectedQuoteRequests    QuoteRequest[]            @relation("SelectedQuoteSupplier")
+  quoteRequests            QuoteRequest[]            @relation("PrimaryQuoteSupplier")
+  organization             Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, supplierId])
+  @@index([organizationId])
+  @@map("suppliers")
+}
+
+model Order {
+  id                 String            @id @default(cuid())
+  orderNumber        String
+  organizationId     String
+  status             OrderStatus       @default(PENDING)
+  priority           Priority          @default(MEDIUM)
+  orderDate          DateTime          @default(now())
+  expectedDelivery   DateTime?
+  actualDelivery     DateTime?
+  subtotal           Decimal           @db.Decimal(10, 2)
+  tax                Decimal?          @db.Decimal(10, 2)
+  shipping           Decimal?          @db.Decimal(10, 2)
+  total              Decimal           @db.Decimal(10, 2)
+  trackingNumber     String?
+  shippingMethod     String?
+  shippingAddress    Json?
+  notes              String?
+  internalNotes      String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  supplierId         String
+  vehicleId          String?
+  createdById        String
+  emailThreadId      String?           @unique
+  quoteReference     String?
+  fulfillmentMethod  FulfillmentMethod @default(DELIVERY)
+  partialFulfillment Boolean           @default(false)
+  pickupLocation     String?
+  pickupDate         DateTime?
+  shippingCarrier    String?
+  orderItems         OrderItem[]
+  createdBy          User              @relation(fields: [createdById], references: [id])
+  emailThread        EmailThread?      @relation(fields: [emailThreadId], references: [id])
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier           Supplier          @relation(fields: [supplierId], references: [id])
+  vehicle            Vehicle?          @relation(fields: [vehicleId], references: [id])
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId])
+  @@index([organizationId, orderNumber])
+  @@index([organizationId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String             @id @default(cuid())
+  orderId           String
+  partId            String
+  quantity          Int
+  unitPrice         Decimal            @db.Decimal(10, 2)
+  totalPrice        Decimal            @db.Decimal(10, 2)
+  quantityReceived  Int                @default(0)
+  isReceived        Boolean            @default(false)
+  receivedDate      DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  availability      ItemAvailability   @default(UNKNOWN)
+  fulfillmentMethod FulfillmentMethod?
+  trackingNumber    String?
+  expectedDelivery  DateTime?
+  actualDelivery    DateTime?
+  supplierNotes     String?
+  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  part              Part               @relation(fields: [partId], references: [id])
+
+  @@map("order_items")
+}
+
+model MaintenanceRecord {
+  id                 String            @id @default(cuid())
+  maintenanceId      String
+  organizationId     String
+  type               MaintenanceType
+  status             MaintenanceStatus @default(SCHEDULED)
+  priority           Priority          @default(MEDIUM)
+  scheduledDate      DateTime
+  completedDate      DateTime?
+  estimatedHours     Decimal?          @db.Decimal(5, 2)
+  actualHours        Decimal?          @db.Decimal(5, 2)
+  estimatedCost      Decimal?          @db.Decimal(10, 2)
+  actualCost         Decimal?          @db.Decimal(10, 2)
+  laborCost          Decimal?          @db.Decimal(10, 2)
+  partsCost          Decimal?          @db.Decimal(10, 2)
+  description        String
+  workPerformed      String?
+  notes              String?
+  location           String?
+  assignedTechnician String?
+  technicianNotes    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  vehicleId          String
+  createdById        String
+  parts              MaintenancePart[]
+  createdBy          User              @relation(fields: [createdById], references: [id])
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicle            Vehicle           @relation(fields: [vehicleId], references: [id])
+
+  @@unique([organizationId, maintenanceId])
+  @@index([organizationId])
+  @@index([organizationId, scheduledDate])
+  @@map("maintenance_records")
+}
+
+model MaintenancePart {
+  id            String            @id @default(cuid())
+  maintenanceId String
+  partId        String
+  quantityUsed  Int
+  unitCost      Decimal           @db.Decimal(10, 2)
+  totalCost     Decimal           @db.Decimal(10, 2)
+  createdAt     DateTime          @default(now())
+  maintenance   MaintenanceRecord @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+  part          Part              @relation(fields: [partId], references: [id])
+
+  @@map("maintenance_parts")
+}
+
+model CostSavingsRecord {
+  id              String       @id @default(cuid())
+  month           Int
+  year            Int
+  organizationId  String
+  totalSavings    Decimal      @db.Decimal(10, 2)
+  manualCost      Decimal      @db.Decimal(10, 2)
+  platformCost    Decimal      @db.Decimal(10, 2)
+  savingsPercent  Decimal      @db.Decimal(5, 2)
+  ordersProcessed Int          @default(0)
+  avgOrderValue   Decimal?     @db.Decimal(10, 2)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, month, year])
+  @@index([organizationId])
+  @@map("cost_savings_records")
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  type           ActivityType
+  title          String
+  description    String?
+  entityType     String?
+  entityId       String?
+  userId         String?
+  organizationId String
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, type, createdAt])
+  @@map("activity_logs")
+}
+
+model ChatConversation {
+  id             String              @id @default(cuid())
+  title          String?
+  organizationId String
+  userId         String
+  context        ConversationContext @default(PARTS_SEARCH)
+  isActive       Boolean             @default(true)
+  lastMessageAt  DateTime            @default(now())
+  messageCount   Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [userId], references: [id])
+  messages       ChatMessage[]
+  pickLists      ChatPickList[]
+
+  @@index([organizationId])
+  @@index([organizationId, userId, isActive])
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  messageType    MessageType      @default(TEXT)
+  model          String?
+  tokens         Int?
+  processingTime Int?
+  context        Json?
+  actions        Json?
+  isEdited       Boolean          @default(false)
+  isDeleted      Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, role])
+  @@map("chat_messages")
+}
+
+model ChatPickList {
+  id             String             @id @default(cuid())
+  conversationId String
+  name           String             @default("My Pick List")
+  status         PickListStatus     @default(ACTIVE)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  vehicleId      String?
+  items          ChatPickListItem[]
+  conversation   ChatConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle?           @relation(fields: [vehicleId], references: [id])
+  quoteRequests  QuoteRequest[]
+
+  @@map("chat_pick_lists")
+}
+
+model ChatPickListItem {
+  id             String       @id @default(cuid())
+  pickListId     String
+  partNumber     String
+  description    String
+  quantity       Int          @default(1)
+  estimatedPrice Decimal?     @db.Decimal(10, 2)
+  messageId      String?
+  addedFromChat  Boolean      @default(true)
+  isOrdered      Boolean      @default(false)
+  orderId        String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  pickList       ChatPickList @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+
+  @@index([pickListId, isOrdered])
+  @@map("chat_pick_list_items")
+}
+
+model ApiKey {
+  id             String       @id @default(cuid())
+  name           String
+  key            String       @unique
+  organizationId String
+  scopes         String[]
+  lastUsed       DateTime?
+  usageCount     Int          @default(0)
+  isActive       Boolean      @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  apiRequests    ApiRequest[]
+
+  @@index([organizationId])
+  @@map("api_keys")
+}
+
+model ApiRequest {
+  id         String   @id @default(cuid())
+  apiKeyId   String
+  method     String
+  path       String
+  statusCode Int
+  ipAddress  String?
+  userAgent  String?
+  duration   Int
+  timestamp  DateTime @default(now())
+  apiKey     ApiKey   @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@index([apiKeyId])
+  @@map("api_requests")
+}
+
+model SecurityAuditLog {
+  id             String            @id @default(cuid())
+  organizationId String
+  eventType      SecurityEventType
+  userId         String?
+  ipAddress      String?
+  userAgent      String?
+  description    String
+  metadata       Json?
+  timestamp      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, eventType])
+  @@map("security_audit_logs")
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model EmailThread {
+  id                       String                   @id @default(cuid())
+  subject                  String
+  externalThreadId         String?
+  status                   EmailThreadStatus
+  organizationId           String
+  supplierId               String?
+  quoteRequestId           String?
+  createdById              String
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  messages                 EmailMessage[]
+  createdBy                User                     @relation(fields: [createdById], references: [id])
+  organization             Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quoteRequest             QuoteRequest?            @relation(fields: [quoteRequestId], references: [id])
+  supplier                 Supplier?                @relation(fields: [supplierId], references: [id])
+  order                    Order?
+  quoteRequestEmailThreads QuoteRequestEmailThread?
+
+  @@index([organizationId])
+  @@index([supplierId])
+  @@index([quoteRequestId])
+  @@index([status])
+  @@map("email_threads")
+}
+
+model EmailMessage {
+  id                 String            @id @default(cuid())
+  threadId           String
+  direction          EmailDirection
+  from               String
+  to                 String
+  cc                 String[]          @default([])
+  bcc                String[]          @default([])
+  subject            String
+  body               String
+  bodyHtml           String?
+  externalMessageId  String?
+  sentAt             DateTime?
+  receivedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  expectedResponseBy DateTime?
+  followUpSentAt     DateTime?
+  inReplyTo          String?
+  followUpReason     String?
+  metadata           Json?
+  attachments        EmailAttachment[]
+  thread             EmailThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([inReplyTo])
+  @@map("email_messages")
+}
+
+model EmailAttachment {
+  id            String       @id @default(cuid())
+  messageId     String
+  filename      String
+  contentType   String
+  size          Int
+  path          String
+  createdAt     DateTime     @default(now())
+  extractedText String?
+  message       EmailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("email_attachments")
+}
+
+model QuoteRequest {
+  id                         String                    @id @default(cuid())
+  quoteNumber                String
+  title                      String
+  status                     QuoteStatus               @default(DRAFT)
+  organizationId             String
+  supplierId                 String
+  description                String?
+  notes                      String?
+  requestDate                DateTime                  @default(now())
+  expiryDate                 DateTime?
+  responseDate               DateTime?
+  totalAmount                Decimal?                  @db.Decimal(10, 2)
+  createdById                String
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+  vehicleId                  String
+  suggestedFulfillmentMethod String?
+  pickListId                 String?
+  additionalSupplierIds      String?
+  selectedSupplierId         String?
+  n8nResponses               N8nResponse[]
+  editedEmails               EditedEmail[]
+  emailThread                EmailThread[]
+  emailThreads               QuoteRequestEmailThread[]
+  items                      QuoteRequestItem[]
+  createdBy                  User                      @relation(fields: [createdById], references: [id])
+  organization               Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pickList                   ChatPickList?             @relation(fields: [pickListId], references: [id])
+  selectedSupplier           Supplier?                 @relation("SelectedQuoteSupplier", fields: [selectedSupplierId], references: [id])
+  supplier                   Supplier                  @relation("PrimaryQuoteSupplier", fields: [supplierId], references: [id])
+  vehicle                    Vehicle                   @relation(fields: [vehicleId], references: [id])
+
+  @@unique([organizationId, quoteNumber])
+  @@index([organizationId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("quote_requests")
+}
+
+model QuoteRequestItem {
+  id                         String           @id @default(cuid())
+  quoteRequestId             String
+  supplierId                 String?
+  partId                     String?
+  partNumber                 String
+  description                String
+  quantity                   Int
+  unitPrice                  Decimal?         @db.Decimal(10, 2)
+  totalPrice                 Decimal?         @db.Decimal(10, 2)
+  supplierPartNumber         String?
+  leadTime                   Int?
+  isAlternative              Boolean          @default(false)
+  notes                      String?
+  createdAt                  DateTime         @default(now())
+  updatedAt                  DateTime         @updatedAt
+  availability               ItemAvailability @default(UNKNOWN)
+  estimatedDeliveryDays      Int?
+  suggestedFulfillmentMethod String?
+  alternativeReason          String?
+  isSuperseded               Boolean          @default(false)
+  originalPartNumber         String?
+  supersessionNotes          String?
+  supplierNotes              String?
+  part                       Part?            @relation(fields: [partId], references: [id])
+  quoteRequest               QuoteRequest     @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+  supplier                   Supplier?        @relation(fields: [supplierId], references: [id])
+
+  @@index([quoteRequestId])
+  @@index([supplierId])
+  @@index([quoteRequestId, supplierId])
+  @@map("quote_request_items")
+}
+
+model QuoteRequestEmailThread {
+  id             String            @id @default(cuid())
+  quoteRequestId String
+  emailThreadId  String            @unique
+  supplierId     String
+  isPrimary      Boolean           @default(false)
+  status         QuoteThreadStatus @default(SENT)
+  responseDate   DateTime?
+  quotedAmount   Decimal?          @db.Decimal(10, 2)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  emailThread    EmailThread       @relation(fields: [emailThreadId], references: [id])
+  quoteRequest   QuoteRequest      @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+  supplier       Supplier          @relation(fields: [supplierId], references: [id])
+
+  @@unique([quoteRequestId, supplierId])
+  @@index([quoteRequestId])
+  @@index([supplierId])
+  @@map("quote_request_email_threads")
+}
+
+model EditedEmail {
+  id             String       @id @default(cuid())
+  quoteRequestId String
+  emailType      String
+  subject        String
+  body           String
+  bodyHtml       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  quoteRequest   QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+
+  @@index([quoteRequestId])
+  @@map("edited_emails")
+}
+
+model N8nResponse {
+  id             String       @id @default(cuid())
+  quoteRequestId String
+  messageId      String?
+  responseType   String
+  responseData   Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  quoteRequest   QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+
+  @@index([quoteRequestId])
+  @@index([messageId])
+}
+
+model AuxiliaryEmail {
+  id         String   @id @default(cuid())
+  email      String
+  name       String?
+  phone      String?
+  supplierId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, email])
+  @@index([supplierId])
+  @@map("auxiliary_emails")
+}
+
+enum SubscriptionTier {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  TRIAL
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  TECHNICIAN
+  USER
+}
+
+enum VehicleType {
+  EXCAVATOR
+  DOZER
+  DUMP_TRUCK
+  LOADER
+  CRANE
+  GRADER
+  COMPACTOR
+  OTHER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+  RETIRED
+}
+
+enum IndustryCategory {
+  CONSTRUCTION
+  AGRICULTURE
+  FORESTRY
+}
+
+enum AlertType {
+  MAINTENANCE_DUE
+  LOW_FUEL
+  ENGINE_WARNING
+  HYDRAULIC_ISSUE
+  OVERHEATING
+  LOCATION_ALERT
+  OTHER
+}
+
+enum AlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum SupplierType {
+  OEM_DIRECT
+  DISTRIBUTOR
+  AFTERMARKET
+  LOCAL_DEALER
+  ONLINE_RETAILER
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+  PENDING_APPROVAL
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING
+  PENDING_QUOTE
+  PROCESSING
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  REPAIR
+  INSPECTION
+  EMERGENCY
+  UPGRADE
+  RECALL
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  OVERDUE
+  ON_HOLD
+}
+
+enum ActivityType {
+  VEHICLE_ADDED
+  VEHICLE_UPDATED
+  ORDER_CREATED
+  ORDER_DELIVERED
+  MAINTENANCE_SCHEDULED
+  MAINTENANCE_COMPLETED
+  PART_LOW_STOCK
+  SUPPLIER_ADDED
+  ALERT_CREATED
+  ALERT_RESOLVED
+  USER_LOGIN
+  USER_LOGOUT
+  USER_REGISTERED
+  USER_VERIFIED
+  USER_PASSWORD_CHANGED
+  USER_PROFILE_UPDATED
+  USER_ROLE_CHANGED
+  USER_DEACTIVATED
+  USER_REACTIVATED
+  SYSTEM_UPDATE
+  ORGANIZATION_CREATED
+  SUBSCRIPTION_UPDATED
+  QUOTE_REQUESTED
+  QUOTE_RECEIVED
+  QUOTE_APPROVED
+  QUOTE_REJECTED
+}
+
+enum ConversationContext {
+  PARTS_SEARCH
+  MAINTENANCE_HELP
+  VEHICLE_DIAGNOSTICS
+  SUPPLIER_INQUIRY
+  GENERAL_SUPPORT
+  CUSTOMER_SUPPORT
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  PART_RECOMMENDATION
+  MAINTENANCE_SCHEDULE
+  ORDER_SUMMARY
+  ERROR_MESSAGE
+  SYSTEM_NOTIFICATION
+}
+
+enum PickListStatus {
+  ACTIVE
+  CONVERTED_TO_ORDER
+  ARCHIVED
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGOUT
+  PASSWORD_CHANGE
+  PASSWORD_RESET_REQUEST
+  PASSWORD_RESET_COMPLETE
+  EMAIL_CHANGE
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+  API_KEY_CREATED
+  API_KEY_DELETED
+  ROLE_CHANGED
+  SUSPICIOUS_ACTIVITY
+}
+
+enum FulfillmentMethod {
+  PICKUP
+  DELIVERY
+  SPLIT
+}
+
+enum ItemAvailability {
+  IN_STOCK
+  BACKORDERED
+  SPECIAL_ORDER
+  UNKNOWN
+}
+
+enum EmailThreadStatus {
+  DRAFT
+  SENT
+  WAITING_RESPONSE
+  RESPONSE_RECEIVED
+  FOLLOW_UP_NEEDED
+  COMPLETED
+  CONVERTED_TO_ORDER
+  CANCELLED
+}
+
+enum EmailDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  RECEIVED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+  CONVERTED_TO_ORDER
+}
+
+enum QuoteThreadStatus {
+  SENT
+  RESPONDED
+  ACCEPTED
+  REJECTED
+  NO_RESPONSE
+}

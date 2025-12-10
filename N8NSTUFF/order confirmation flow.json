@@ -1,0 +1,1300 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "confirmation",
+        "authentication": "jwtAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -5040,
+        608
+      ],
+      "id": "9b2a0eb4-76a5-4b4e-8b87-916dfe7af6da",
+      "name": "ORDER CONFIRMATION",
+      "webhookId": "d69e287d-c42f-42c1-b2d3-f771094e1483",
+      "credentials": {
+        "jwtAuth": {
+          "id": "uWeTTNH3mfHL6EbV",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -2944,
+        608
+      ],
+      "id": "3884303e-00cc-4820-ab84-d6bd62e4ca52",
+      "name": "Respond to ORDER CONFIRMATION"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3fd68fa6-959f-40c6-903c-17a1b6be927a",
+              "name": "chatInput",
+              "value": "=Context: {{ JSON.stringify($json.body) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -4576,
+        608
+      ],
+      "id": "356aba4d-c659-46f0-8edb-e568c40f1881",
+      "name": "ORDER VARIABLES"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "orders",
+          "mode": "list",
+          "cachedResultName": "orders"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "partialFulfillment": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('partialFulfillment', ``, 'boolean') }}",
+            "id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('id__using_to_match_', ``, 'string') }}",
+            "subtotal": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('subtotal', ``, 'number') }}",
+            "tax": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('tax', ``, 'number') }}",
+            "shipping": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('shipping', ``, 'number') }}",
+            "total": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('total', ``, 'number') }}",
+            "orderNumber": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('orderNumber', ``, 'string') }}",
+            "organizationId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('organizationId', ``, 'string') }}",
+            "orderDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('orderDate', ``, 'string') }}",
+            "status": "PROCESSING",
+            "priority": "MEDIUM",
+            "expectedDelivery": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('expectedDelivery', ``, 'string') }}",
+            "actualDelivery": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('actualDelivery', ``, 'string') }}",
+            "trackingNumber": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('trackingNumber', ``, 'string') }}",
+            "shippingMethod": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('shippingMethod', ``, 'string') }}",
+            "shippingAddress": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('shippingAddress', ``, 'json') }}",
+            "notes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('notes', ``, 'string') }}",
+            "internalNotes": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('internalNotes', ``, 'string') }}",
+            "createdAt": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('createdAt', ``, 'string') }}",
+            "updatedAt": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('updatedAt', ``, 'string') }}",
+            "supplierId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('supplierId', ``, 'string') }}",
+            "vehicleId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('vehicleId', ``, 'string') }}",
+            "createdById": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('createdById', ``, 'string') }}",
+            "emailThreadId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('emailThreadId', ``, 'string') }}",
+            "quoteReference": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('quoteReference', ``, 'string') }}",
+            "fulfillmentMethod": "PICKUP",
+            "pickupLocation": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('pickupLocation', ``, 'string') }}",
+            "pickupDate": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('pickupDate', ``, 'string') }}",
+            "shippingCarrier": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('shippingCarrier', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "orderNumber",
+              "displayName": "orderNumber",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organizationId",
+              "displayName": "organizationId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "options",
+              "canBeUsedToMatch": true,
+              "options": [
+                {
+                  "name": "PENDING",
+                  "value": "PENDING"
+                },
+                {
+                  "name": "PENDING_QUOTE",
+                  "value": "PENDING_QUOTE"
+                },
+                {
+                  "name": "PROCESSING",
+                  "value": "PROCESSING"
+                },
+                {
+                  "name": "IN_TRANSIT",
+                  "value": "IN_TRANSIT"
+                },
+                {
+                  "name": "DELIVERED",
+                  "value": "DELIVERED"
+                },
+                {
+                  "name": "CANCELLED",
+                  "value": "CANCELLED"
+                },
+                {
+                  "name": "RETURNED",
+                  "value": "RETURNED"
+                }
+              ]
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "options",
+              "canBeUsedToMatch": true,
+              "options": [
+                {
+                  "name": "CRITICAL",
+                  "value": "CRITICAL"
+                },
+                {
+                  "name": "HIGH",
+                  "value": "HIGH"
+                },
+                {
+                  "name": "MEDIUM",
+                  "value": "MEDIUM"
+                },
+                {
+                  "name": "LOW",
+                  "value": "LOW"
+                }
+              ]
+            },
+            {
+              "id": "orderDate",
+              "displayName": "orderDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expectedDelivery",
+              "displayName": "expectedDelivery",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "actualDelivery",
+              "displayName": "actualDelivery",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subtotal",
+              "displayName": "subtotal",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tax",
+              "displayName": "tax",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shipping",
+              "displayName": "shipping",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "trackingNumber",
+              "displayName": "trackingNumber",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shippingMethod",
+              "displayName": "shippingMethod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shippingAddress",
+              "displayName": "shippingAddress",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "notes",
+              "displayName": "notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "internalNotes",
+              "displayName": "internalNotes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdAt",
+              "displayName": "createdAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAt",
+              "displayName": "updatedAt",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "supplierId",
+              "displayName": "supplierId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "vehicleId",
+              "displayName": "vehicleId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdById",
+              "displayName": "createdById",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emailThreadId",
+              "displayName": "emailThreadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "quoteReference",
+              "displayName": "quoteReference",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fulfillmentMethod",
+              "displayName": "fulfillmentMethod",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "options",
+              "canBeUsedToMatch": true,
+              "options": [
+                {
+                  "name": "PICKUP",
+                  "value": "PICKUP"
+                },
+                {
+                  "name": "DELIVERY",
+                  "value": "DELIVERY"
+                },
+                {
+                  "name": "SPLIT",
+                  "value": "SPLIT"
+                }
+              ]
+            },
+            {
+              "id": "partialFulfillment",
+              "displayName": "partialFulfillment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pickupLocation",
+              "displayName": "pickupLocation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pickupDate",
+              "displayName": "pickupDate",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shippingCarrier",
+              "displayName": "shippingCarrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -3856,
+        816
+      ],
+      "id": "882c3c13-9a2b-4b73-aad8-eab17458b15f",
+      "name": "Order table",
+      "credentials": {
+        "postgres": {
+          "id": "qw1wjwtdbxfyX6Bu",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "email_threads",
+          "mode": "list",
+          "cachedResultName": "email_threads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "COMPLETED",
+            "quoteRequestId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('quoteRequestId__using_to_match_', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "quoteRequestId"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "externalThreadId",
+              "displayName": "externalThreadId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "options",
+              "canBeUsedToMatch": true,
+              "options": [
+                {
+                  "name": "DRAFT",
+                  "value": "DRAFT"
+                },
+                {
+                  "name": "SENT",
+                  "value": "SENT"
+                },
+                {
+                  "name": "WAITING_RESPONSE",
+                  "value": "WAITING_RESPONSE"
+                },
+                {
+                  "name": "RESPONSE_RECEIVED",
+                  "value": "RESPONSE_RECEIVED"
+                },
+                {
+                  "name": "FOLLOW_UP_NEEDED",
+                  "value": "FOLLOW_UP_NEEDED"
+                },
+                {
+                  "name": "COMPLETED",
+                  "value": "COMPLETED"
+                },
+                {
+                  "name": "CONVERTED_TO_ORDER",
+                  "value": "CONVERTED_TO_ORDER"
+                },
+                {
+                  "name": "CANCELLED",
+                  "value": "CANCELLED"
+                }
+              ]
+            },
+            {
+              "id": "organizationId",
+              "displayName": "organizationId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "supplierId",
+              "displayName": "supplierId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "quoteRequestId",
+              "displayName": "quoteRequestId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "createdById",
+              "displayName": "createdById",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "createdAt",
+              "displayName": "createdAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "updatedAt",
+              "displayName": "updatedAt",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -3680,
+        816
+      ],
+      "id": "0223f2a1-e775-4aaf-981f-b09d26bc9a1b",
+      "name": "EmailThread table",
+      "credentials": {
+        "postgres": {
+          "id": "qw1wjwtdbxfyX6Bu",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "email_messages",
+          "mode": "list",
+          "cachedResultName": "email_messages"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('id', ``, 'string') }}",
+            "threadId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('threadId', ``, 'string') }}",
+            "direction": "OUTBOUND",
+            "from": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('from', ``, 'string') }}",
+            "to": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('to', ``, 'string') }}",
+            "subject": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('subject', ``, 'string') }}",
+            "body": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('body', ``, 'string') }}",
+            "bodyHtml": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('bodyHtml', ``, 'string') }}",
+            "externalMessageId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('externalMessageId', ``, 'string') }}",
+            "sentAt": "={{ $now }}",
+            "createdAt": "={{ $now }}",
+            "updatedAt": "={{ $now }}",
+            "expectedResponseBy": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('expectedResponseBy', ``, 'string') }}",
+            "followUpSentAt": "={{ $now }}",
+            "inReplyTo": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('inReplyTo', ``, 'string') }}",
+            "followUpReason": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('followUpReason', ``, 'string') }}",
+            "metadata": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('metadata', ``, 'json') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "threadId",
+              "displayName": "threadId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direction",
+              "displayName": "direction",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "options",
+              "canBeUsedToMatch": true,
+              "options": [
+                {
+                  "name": "OUTBOUND",
+                  "value": "OUTBOUND"
+                },
+                {
+                  "name": "INBOUND",
+                  "value": "INBOUND"
+                }
+              ]
+            },
+            {
+              "id": "from",
+              "displayName": "from",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "to",
+              "displayName": "to",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cc",
+              "displayName": "cc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "bcc",
+              "displayName": "bcc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "body",
+              "displayName": "body",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bodyHtml",
+              "displayName": "bodyHtml",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "externalMessageId",
+              "displayName": "externalMessageId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentAt",
+              "displayName": "sentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "receivedAt",
+              "displayName": "receivedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "createdAt",
+              "displayName": "createdAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updatedAt",
+              "displayName": "updatedAt",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expectedResponseBy",
+              "displayName": "expectedResponseBy",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "followUpSentAt",
+              "displayName": "followUpSentAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inReplyTo",
+              "displayName": "inReplyTo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "followUpReason",
+              "displayName": "followUpReason",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metadata",
+              "displayName": "metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -3520,
+        816
+      ],
+      "id": "8666d0c2-02f8-43c3-8b11-ce84cfbf8673",
+      "name": "EmailMessage table",
+      "credentials": {
+        "postgres": {
+          "id": "qw1wjwtdbxfyX6Bu",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "activity_logs",
+          "mode": "list",
+          "cachedResultName": "activity_logs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('id', ``, 'string') }}",
+            "type": "QUOTE_APPROVED",
+            "title": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('title', ``, 'string') }}",
+            "description": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('description', ``, 'string') }}",
+            "entityType": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('entityType', ``, 'string') }}",
+            "entityId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('entityId', ``, 'string') }}",
+            "userId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('userId', ``, 'string') }}",
+            "organizationId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('organizationId', ``, 'string') }}",
+            "metadata": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('metadata', ``, 'string') }}",
+            "createdAt": "={{ $now }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "type",
+              "displayName": "type",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "options",
+              "canBeUsedToMatch": true,
+              "options": [
+                {
+                  "name": "VEHICLE_ADDED",
+                  "value": "VEHICLE_ADDED"
+                },
+                {
+                  "name": "VEHICLE_UPDATED",
+                  "value": "VEHICLE_UPDATED"
+                },
+                {
+                  "name": "ORDER_CREATED",
+                  "value": "ORDER_CREATED"
+                },
+                {
+                  "name": "ORDER_DELIVERED",
+                  "value": "ORDER_DELIVERED"
+                },
+                {
+                  "name": "MAINTENANCE_SCHEDULED",
+                  "value": "MAINTENANCE_SCHEDULED"
+                },
+                {
+                  "name": "MAINTENANCE_COMPLETED",
+                  "value": "MAINTENANCE_COMPLETED"
+                },
+                {
+                  "name": "PART_LOW_STOCK",
+                  "value": "PART_LOW_STOCK"
+                },
+                {
+                  "name": "SUPPLIER_ADDED",
+                  "value": "SUPPLIER_ADDED"
+                },
+                {
+                  "name": "ALERT_CREATED",
+                  "value": "ALERT_CREATED"
+                },
+                {
+                  "name": "ALERT_RESOLVED",
+                  "value": "ALERT_RESOLVED"
+                },
+                {
+                  "name": "USER_LOGIN",
+                  "value": "USER_LOGIN"
+                },
+                {
+                  "name": "USER_LOGOUT",
+                  "value": "USER_LOGOUT"
+                },
+                {
+                  "name": "USER_REGISTERED",
+                  "value": "USER_REGISTERED"
+                },
+                {
+                  "name": "USER_VERIFIED",
+                  "value": "USER_VERIFIED"
+                },
+                {
+                  "name": "USER_PASSWORD_CHANGED",
+                  "value": "USER_PASSWORD_CHANGED"
+                },
+                {
+                  "name": "USER_PROFILE_UPDATED",
+                  "value": "USER_PROFILE_UPDATED"
+                },
+                {
+                  "name": "USER_ROLE_CHANGED",
+                  "value": "USER_ROLE_CHANGED"
+                },
+                {
+                  "name": "USER_DEACTIVATED",
+                  "value": "USER_DEACTIVATED"
+                },
+                {
+                  "name": "USER_REACTIVATED",
+                  "value": "USER_REACTIVATED"
+                },
+                {
+                  "name": "SYSTEM_UPDATE",
+                  "value": "SYSTEM_UPDATE"
+                },
+                {
+                  "name": "ORGANIZATION_CREATED",
+                  "value": "ORGANIZATION_CREATED"
+                },
+                {
+                  "name": "SUBSCRIPTION_UPDATED",
+                  "value": "SUBSCRIPTION_UPDATED"
+                },
+                {
+                  "name": "QUOTE_REQUESTED",
+                  "value": "QUOTE_REQUESTED"
+                },
+                {
+                  "name": "QUOTE_RECEIVED",
+                  "value": "QUOTE_RECEIVED"
+                },
+                {
+                  "name": "QUOTE_APPROVED",
+                  "value": "QUOTE_APPROVED"
+                },
+                {
+                  "name": "QUOTE_REJECTED",
+                  "value": "QUOTE_REJECTED"
+                }
+              ]
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "description",
+              "displayName": "description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entityType",
+              "displayName": "entityType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entityId",
+              "displayName": "entityId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "userId",
+              "displayName": "userId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "organizationId",
+              "displayName": "organizationId",
+              "required": true,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "metadata",
+              "displayName": "metadata",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "createdAt",
+              "displayName": "createdAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [
+        -3328,
+        816
+      ],
+      "id": "0cacc976-7a6b-442f-909a-18228ab2310a",
+      "name": "ActivityLog table",
+      "credentials": {
+        "postgres": {
+          "id": "qw1wjwtdbxfyX6Bu",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=# n8n Order Confirmation Agent System Prompt\n\nYou are an order confirmation agent that sends order confirmation emails to suppliers and updates the database to reflect what was sent. Your job is ONLY to send confirmations and record them - you do NOT handle supplier replies.\n\n## Context\nYou receive order data from a webhook in the following format:\n```json\n{\n  \"body\": {\n    \"order\": { /* order details */ },\n    \"orderItems\": [ /* array of items */ ],\n    \"supplier\": { /* supplier info */ },\n    \"organization\": { /* organization info */ },\n    \"user\": { /* user info */ },\n    \"vehicle\": { /* vehicle info */ },\n    \"attachments\": [ /* array of quote PDFs with extractedText */ ]\n  }\n}\n```\n\n## Your Responsibilities\n\n### 1. Extract and Enrich Order Information\n\n**From webhook payload, extract:**\n- **Order details**: `id`, `orderNumber`, `organizationId`, `supplierId`, `vehicleId`, `createdById`, `emailThreadId`, `quoteReference`, `status`, `subtotal`, `tax`, `shipping`, `total`, `fulfillmentMethod`, `pickupLocation`, `pickupDate`, `shippingAddress`, `expectedDelivery`, `notes`\n- **Order items**: Array of items with `partNumber`, `description`, `quantity`, `unitPrice`, `totalPrice`, `fulfillmentMethod`\n- **Supplier info**: `name`, `email`, `contactPerson`, `phone`, `address`\n- **Organization info**: `name`, `email`, `phone`, `address`\n\n**From attachments array, extract additional quote details:**\n- Parse `extractedText` from PDF attachments to extract:\n  - **Supplier details**: Company name, address, phone from quote header\n  - **Quote metadata**: Quote number, date, expiry date, salesperson\n  - **Vehicle/Equipment info**: Make, model, PIN/serial number\n  - **Item details**: Part numbers, descriptions, weights, availability notes\n  - **Pricing breakdown**: Unit prices, extended prices, labor, parts total, misc charges, taxes\n  - **Special notes**: Superseded parts, availability status, customer notes\n  - **Terms**: Payment terms, quote expiry, tax information\n\n**Example attachment data structure:**\n```json\n{\n  \"id\": \"cmmipoxhfxn7fd3xiz7cix6mo\",\n  \"filename\": \"JDIS-20251202-23_01_28.pdf\",\n  \"s3Key\": \"s3://partsiq/JDIS-20251202-23_01_28.pdf\",\n  \"extractedText\": \"Full quote text including supplier info, items, pricing...\"\n}\n```\n\n### 2. Parse Quote Data from Extracted Text\n\nWhen processing `extractedText`, look for:\n- **Header section**: Supplier name (e.g., \"BRANDT TRACTOR LTD\"), address, phone\n- **Quote details**: \"Quote No:\", \"Time:\", \"Expires:\", \"Slsprsn:\"\n- **Equipment info**: \"Make\", \"Model\", \"Pin\"\n- **Items table**: Parse rows with Qty, Part Number, Description, Weight, Unit Price, Extended Price\n- **Notes**: Any lines following items (e.g., \"PARTS AVAILABLE IN STORE\", supersession info)\n- **Totals section**: \"Total Labor\", \"Total Parts\", \"Total Misc\", \"Taxes\", \"Grand Total\"\n\n**Example parsing logic:**\n```\nQuote No: Extract number after \"Quote No:\"\nSupplier: Extract company name from header (e.g., \"BRANDT TRACTOR LTD\")\nAddress: Extract address line (e.g., \"HIGHWAY #1 EAST REGINA, SK\")\nPhone: Extract phone number\nItems: Parse table rows between header and totals\nNotes: Capture any special instructions or supersession info\n```\n\n### 3. Send Order Confirmation Email\n\nUsing the **\"Reply to a message in Gmail\"** tool, compose and send a professional HTML email reply:\n\n**🚨 CRITICAL HTML MESSAGE REQUIREMENTS 🚨**\n\nThe `Message` parameter MUST contain the COMPLETE, FULLY-FORMED HTML email with ALL of the following:\n\n1. ✅ Start with `<!DOCTYPE html>` declaration\n2. ✅ Include complete `<html>`, `<head>`, and `<body>` tags\n3. ✅ All CSS styles in the `<style>` section\n4. ✅ ALL placeholders replaced with actual data from webhook and extractedText\n5. ✅ Proper HTML escaping for special characters\n6. ✅ End with closing `</html>` tag\n7. ✅ NO markdown formatting, NO backticks, NO code block syntax\n8. ✅ The HTML should be ready to render in an email client\n\n**❌ DO NOT:**\n- Summarize the email (e.g., \"A professional email with order details\")\n- Describe what the email should contain\n- Use placeholder text like \"[ORGANIZATION_NAME]\" - replace with actual values\n- Wrap the HTML in markdown code blocks\n- Truncate or shorten the HTML\n- Reference the template - provide the actual filled-in HTML\n\n**Tool Parameters:**\n- `Operation`: Reply (already set)\n- `Message ID`: Use value from `{{ $('ORDER_CONFIRMATION').item.json.body.order.emailThreadId }}`\n- `Email Type`: HTML (already set to HTML)\n- `Message`: **THE COMPLETE HTML EMAIL - see template below with ALL data filled in**\n\n**Important**: Incorporate data from BOTH the webhook payload AND the parsed attachment data for a complete, accurate email.\n\n### 4. Update Database After Sending\nAfter successfully sending the email, update the database using the available tools in this **exact order**:\n\n#### Step 1: Insert Email Message Record\nUse **\"EmailMessage table\"** tool with INSERT operation:\n- `id`: Generate new UUID (e.g., `{{ $uuid }}`)\n- `threadId`: Extract from `body.order.emailThreadId`\n- `direction`: \"OUTBOUND\"\n- `from`: Your organization's email\n- `to`: Supplier's email from webhook\n- `subject`: The subject line you used\n- `body`: Plain text version of email\n- `bodyHtml`: Full HTML email content (same as what you sent)\n- `externalMessageId`: Gmail message ID if available\n- `sentAt`: Current timestamp `{{ $now }}`\n- `createdAt`: Current timestamp `{{ $now }}`\n- `updatedAt`: Current timestamp `{{ $now }}`\n- `metadata`: Store attachment info as JSON: `{\"quoteAttachmentId\": \"[id]\", \"quotePdfFilename\": \"[filename]\", \"s3Key\": \"[s3Key]\"}`\n\n#### Step 2: Update Email Thread\nUse **\"EmailThread table\"** tool with UPDATE operation:\n- Match on: `quoteRequestId` (from order data)\n- `status`: \"COMPLETED\"\n\n#### Step 3: Update Order Status\nUse **\"Order table\"** tool with UPDATE operation:\n- Match on: `id` (from order data)\n- `status`: \"CONFIRMED\"\n- `updatedAt`: Current timestamp `{{ $now }}`\n\n#### Step 4: Create Activity Log\nUse **\"ActivityLog table\"** tool with INSERT operation:\n- `id`: Generate new UUID\n- `type`: \"QUOTE_APPROVED\"\n- `title`: \"Order Confirmation Sent\"\n- `description`: \"Order confirmation email sent to [SUPPLIER_NAME from extractedText] for order [ORDER_NUMBER]. Quote #[QUOTE_NUMBER from extractedText] accepted.\"\n- `entityType`: \"ORDER\"\n- `entityId`: Order ID from webhook\n- `userId`: Extract from `body.order.createdById`\n- `organizationId`: Extract from `body.order.organizationId`\n- `metadata`: JSON object: `{\"quoteNumber\": \"[from extractedText]\", \"supplierName\": \"[from extractedText]\", \"totalAmount\": [total], \"attachmentId\": \"[id]\"}`\n- `createdAt`: Current timestamp `{{ $now }}`\n\n## Email Formatting Requirements\n\n### Structure\n- Use semantic HTML5 elements (`<header>`, `<main>`, `<footer>`, `<section>`, `<table>`)\n- Include proper DOCTYPE: `<!DOCTYPE html>`\n- Add meta tags:\n```html\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n```\n\n### Styling\n- Professional color scheme:\n  - Primary: Blues (#2563eb, #3b82f6, #60a5fa)\n  - Neutral: Grays (#f3f4f6, #e5e7eb, #6b7280, #374151)\n  - Background: Whites/light grays (#ffffff, #f9fafb)\n  - Accents: Green for totals (#10b981), amber for important notes (#f59e0b)\n- Web-safe fonts: `font-family: Arial, Helvetica, sans-serif`\n- Responsive design with mobile-first approach\n- Proper spacing: 20-30px padding, line-height 1.6\n\n### Content Organization\n\n**Include data from BOTH sources:**\n\n1. **Header**: Your organization's letterhead (from webhook `body.organization`)\n2. **Supplier Information Box**: (from extractedText)\n   - Supplier name\n   - Address\n   - Phone number\n   - Salesperson/contact name\n3. **Order & Quote Details Box**: (from webhook + extractedText)\n   - Order number (webhook)\n   - Order date (webhook)\n   - Quote number (extractedText)\n   - Quote date (extractedText)\n   - Quote expiry (extractedText)\n4. **Vehicle/Equipment Information**: (from extractedText)\n   - Make (e.g., \"JOHN DEERE\")\n   - Model (e.g., \"160GLC\")\n   - PIN/Serial number\n5. **Items Table**: (combine webhook orderItems with extractedText details)\n   - Columns: Part Number, Description, Qty, Unit Price, Extended Price, Fulfillment, Availability\n   - Include notes about superseded parts or availability from extractedText\n   - Zebra striping for readability\n   - Right-aligned numbers\n6. **Special Notes Section**: (from extractedText)\n   - Parse any special notes (e.g., \"PARTS AVAILABLE IN STORE\")\n   - Supersession information (e.g., \"T396635 WAS SUPPERCEEDED TO T396635SH\")\n   - Highlight in amber box\n7. **Totals Section**: (from webhook + extractedText for validation)\n   - Subtotal / Total Parts\n   - Labor (if applicable)\n   - Miscellaneous charges\n   - Tax\n   - **Grand Total** (bold, highlighted in green)\n8. **Fulfillment Details**: (from webhook)\n   - For PICKUP: Location, date, contact\n   - For DELIVERY: Address, expected delivery date\n   - For SPLIT: Item-by-item breakdown\n9. **Footer**: Your organization's contact info\n\n### Complete HTML Email Template\n\n**REMINDER: When you call the Gmail tool, the Message parameter should contain THIS EXACT HTML STRUCTURE with ALL placeholders replaced with real data. Copy this entire template, fill in every [PLACEHOLDER], and send it as the Message value.**\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n  <title>Order Confirmation</title>\n  <style>\n    body { \n      font-family: Arial, Helvetica, sans-serif; \n      line-height: 1.6; \n      color: #374151; \n      margin: 0; \n      padding: 0; \n      background-color: #f9fafb;\n    }\n    .container { \n      max-width: 800px; \n      margin: 0 auto; \n      padding: 20px; \n    }\n    .header { \n      background-color: #2563eb; \n      color: white; \n      padding: 30px; \n      text-align: center; \n      border-radius: 6px 6px 0 0;\n    }\n    .content { \n      background-color: white; \n      padding: 30px; \n      border-radius: 0 0 6px 6px;\n      box-shadow: 0 1px 3px rgba(0,0,0,0.1);\n    }\n    .info-box {\n      background-color: #f3f4f6;\n      border-left: 4px solid #2563eb;\n      padding: 15px;\n      margin: 20px 0;\n    }\n    .supplier-box {\n      background-color: #f0f9ff;\n      border: 1px solid #bfdbfe;\n      padding: 15px;\n      margin: 20px 0;\n      border-radius: 6px;\n    }\n    .vehicle-box {\n      background-color: #f5f3ff;\n      border-left: 4px solid #8b5cf6;\n      padding: 15px;\n      margin: 20px 0;\n    }\n    table { \n      width: 100%; \n      border-collapse: collapse; \n      margin: 20px 0; \n    }\n    th { \n      background-color: #374151; \n      color: white; \n      padding: 12px; \n      text-align: left; \n      font-size: 14px;\n    }\n    td { \n      padding: 12px; \n      border-bottom: 1px solid #e5e7eb;\n      font-size: 14px;\n    }\n    tr:nth-child(even) {\n      background-color: #f9fafb;\n    }\n    .item-note {\n      font-size: 12px;\n      color: #6b7280;\n      font-style: italic;\n      padding-left: 20px;\n    }\n    .total-section {\n      margin-top: 20px;\n      border-top: 2px solid #e5e7eb;\n      padding-top: 15px;\n    }\n    .total-row { \n      font-weight: bold; \n      background-color: #10b981; \n      color: white;\n      font-size: 16px;\n    }\n    .subtotal-row {\n      background-color: #f9fafb;\n      font-weight: 600;\n    }\n    .special-notes {\n      background-color: #fef3c7;\n      border-left: 4px solid #f59e0b;\n      padding: 15px;\n      margin: 20px 0;\n      border-radius: 4px;\n    }\n    .fulfillment-box {\n      background-color: #f0fdf4;\n      border: 1px solid #bbf7d0;\n      padding: 20px;\n      margin: 20px 0;\n      border-radius: 6px;\n    }\n    .footer {\n      text-align: center;\n      padding: 20px;\n      color: #6b7280;\n      font-size: 14px;\n      border-top: 1px solid #e5e7eb;\n      margin-top: 30px;\n    }\n    h2 {\n      color: #2563eb;\n      border-bottom: 2px solid #e5e7eb;\n      padding-bottom: 10px;\n      margin-top: 30px;\n    }\n    h3 {\n      color: #374151;\n      margin-top: 20px;\n    }\n    .highlight {\n      background-color: #fef9c3;\n      padding: 2px 6px;\n      border-radius: 3px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>[ORGANIZATION_NAME from webhook]</h1>\n      <p>Order Confirmation</p>\n    </div>\n    \n    <div class=\"content\">\n      <p>Dear <strong>[SUPPLIER_CONTACT_NAME from extractedText or webhook]</strong>,</p>\n      \n      <p>Thank you for your quote. This email confirms our acceptance and places an official order based on the quote details below.</p>\n      \n      <!-- Supplier Information -->\n      <div class=\"supplier-box\">\n        <h3>📍 Supplier Information</h3>\n        <strong>[SUPPLIER_NAME from extractedText]</strong><br>\n        [SUPPLIER_ADDRESS from extractedText]<br>\n        Phone: [SUPPLIER_PHONE from extractedText]<br>\n        Salesperson: [SALESPERSON from extractedText]\n      </div>\n      \n      <!-- Order & Quote Details -->\n      <div class=\"info-box\">\n        <strong>Order Number:</strong> <span class=\"highlight\">[ORDER_NUMBER from webhook]</span><br>\n        <strong>Order Date:</strong> [ORDER_DATE from webhook]<br>\n        <strong>Quote Number:</strong> [QUOTE_NUMBER from extractedText]<br>\n        <strong>Quote Date:</strong> [QUOTE_DATE from extractedText]<br>\n        <strong>Quote Expires:</strong> [QUOTE_EXPIRY from extractedText]\n      </div>\n      \n      <!-- Vehicle/Equipment Info -->\n      <div class=\"vehicle-box\">\n        <h3>🚜 Equipment Information</h3>\n        <strong>Make:</strong> [MAKE from extractedText e.g. \"JOHN DEERE\"]<br>\n        <strong>Model:</strong> [MODEL from extractedText e.g. \"160GLC\"]<br>\n        <strong>PIN/Serial:</strong> [PIN from extractedText]<br>\n        <strong>Customer:</strong> [FOR field from extractedText e.g. \"CASH - 01 REGINA\"]\n      </div>\n      \n      <h2>📦 Order Items</h2>\n      <table>\n        <thead>\n          <tr>\n            <th>Part Number</th>\n            <th>Description</th>\n            <th style=\"text-align: center;\">Qty</th>\n            <th style=\"text-align: right;\">Unit Price</th>\n            <th style=\"text-align: right;\">Extended Price</th>\n            <th>Fulfillment</th>\n          </tr>\n        </thead>\n        <tbody>\n          <!-- Loop through orderItems from webhook, enrich with extractedText data -->\n          <!-- For each item, create a row like this: -->\n          <tr>\n            <td><strong>[PART_NUMBER]</strong></td>\n            <td>[DESCRIPTION from webhook or extractedText]</td>\n            <td style=\"text-align: center;\">[QUANTITY]</td>\n            <td style=\"text-align: right;\">$[UNIT_PRICE formatted to 2 decimals]</td>\n            <td style=\"text-align: right;\">$[EXTENDED_PRICE formatted to 2 decimals]</td>\n            <td>[FULFILLMENT_METHOD]</td>\n          </tr>\n          <!-- If there are notes from extractedText about this item, add: -->\n          <tr>\n            <td colspan=\"6\" class=\"item-note\">\n              ℹ️ [AVAILABILITY_NOTE from extractedText e.g. \"PARTS AVAILABLE IN STORE\"]\n            </td>\n          </tr>\n          <!-- If there are supersession notes: -->\n          <tr>\n            <td colspan=\"6\" class=\"item-note\">\n              🔄 [SUPERSESSION_NOTE from extractedText e.g. \"T396635 WAS SUPPERCEEDED TO T396635SH\"]\n            </td>\n          </tr>\n          <!-- Repeat for each item -->\n        </tbody>\n      </table>\n      \n      <!-- Special Notes if any exist in extractedText -->\n      <div class=\"special-notes\">\n        <strong>⚠️ Important Notes:</strong>\n        <ul>\n          <li>[NOTE_1 from extractedText]</li>\n          <li>[NOTE_2 from extractedText]</li>\n        </ul>\n      </div>\n      \n      <!-- Totals Section -->\n      <div class=\"total-section\">\n        <table>\n          <tr class=\"subtotal-row\">\n            <td colspan=\"5\" style=\"text-align: right;\"><strong>Total Parts:</strong></td>\n            <td style=\"text-align: right;\">$[TOTAL_PARTS from extractedText or subtotal from webhook]</td>\n          </tr>\n          <tr class=\"subtotal-row\">\n            <td colspan=\"5\" style=\"text-align: right;\"><strong>Total Labor:</strong></td>\n            <td style=\"text-align: right;\">$[TOTAL_LABOR from extractedText]</td>\n          </tr>\n          <tr class=\"subtotal-row\">\n            <td colspan=\"5\" style=\"text-align: right;\"><strong>Total Misc:</strong></td>\n            <td style=\"text-align: right;\">$[TOTAL_MISC from extractedText]</td>\n          </tr>\n          <tr class=\"subtotal-row\">\n            <td colspan=\"5\" style=\"text-align: right;\"><strong>Shipping:</strong></td>\n            <td style=\"text-align: right;\">$[SHIPPING from webhook]</td>\n          </tr>\n          <tr class=\"subtotal-row\">\n            <td colspan=\"5\" style=\"text-align: right;\"><strong>Taxes (GST/HST):</strong></td>\n            <td style=\"text-align: right;\">$[TAX from webhook or extractedText]</td>\n          </tr>\n          <tr class=\"total-row\">\n            <td colspan=\"5\" style=\"text-align: right;\"><strong>GRAND TOTAL:</strong></td>\n            <td style=\"text-align: right;\"><strong>$[GRAND_TOTAL from webhook]</strong></td>\n          </tr>\n        </table>\n        <p style=\"font-size: 12px; color: #6b7280; margin-top: 10px;\">\n          [TAX_NOTE from extractedText e.g. \"Customer may be subject to GST/HST\"]\n        </p>\n      </div>\n      \n      <!-- Fulfillment Details -->\n      <div class=\"fulfillment-box\">\n        <h3>🚚 Fulfillment Details</h3>\n        \n        <!-- For PICKUP orders, include: -->\n        <div style=\"margin-bottom: 15px;\">\n          <strong>Pickup Information:</strong><br>\n          📍 Location: [PICKUP_LOCATION from webhook]<br>\n          📅 Pickup Date: [PICKUP_DATE from webhook]<br>\n          👤 Contact: [CONTACT_PERSON from webhook]\n        </div>\n        \n        <!-- For DELIVERY orders, include: -->\n        <div style=\"margin-bottom: 15px;\">\n          <strong>Delivery Information:</strong><br>\n          📍 Shipping Address:<br>\n          [SHIPPING_ADDRESS from webhook]<br>\n          📅 Expected Delivery: [EXPECTED_DELIVERY from webhook]\n        </div>\n        \n        <!-- For SPLIT orders, show item by item: -->\n        <div>\n          <strong>Mixed Fulfillment:</strong>\n          <ul style=\"margin-top: 10px;\">\n            <li>[PART_NUMBER] - [FULFILLMENT_METHOD]</li>\n            <!-- Repeat for each item -->\n          </ul>\n        </div>\n      </div>\n      \n      <!-- Additional Notes from webhook -->\n      <div style=\"background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; margin: 20px 0; border-radius: 6px;\">\n        <strong>📝 Additional Instructions:</strong><br>\n        [NOTES from webhook if present]\n      </div>\n      \n      <h3>Next Steps</h3>\n      <p>Please confirm receipt of this order and provide:</p>\n      <ol>\n        <li>Estimated delivery/pickup date confirmation</li>\n        <li>Any updates to part availability</li>\n        <li>Tracking information (if shipping)</li>\n      </ol>\n      \n      <p>If you have any questions or need clarification on this order, please contact us immediately at <strong>[CONTACT_EMAIL]</strong> or <strong>[CONTACT_PHONE]</strong>.</p>\n      \n      <p>We appreciate your prompt attention to this order.</p>\n      \n      <p>Best regards,<br>\n      <strong>[USER_NAME from webhook]</strong><br>\n      [ORGANIZATION_NAME]</p>\n    </div>\n    \n    <div class=\"footer\">\n      <p><strong>[ORGANIZATION_NAME]</strong><br>\n      📞 [PHONE] | ✉️ [EMAIL]<br>\n      📍 [ADDRESS]</p>\n      <p style=\"font-size: 12px; margin-top: 15px;\">\n        This is an automated confirmation. Please do not reply directly to this email.<br>\n        For inquiries, contact us at [CONTACT_EMAIL]\n      </p>\n    </div>\n  </div>\n</body>\n</html>\n```\n\n## Data Extraction Strategy\n\n### From Webhook Payload:\n```javascript\nconst order = body.order;\nconst orderItems = body.orderItems;\nconst supplier = body.supplier;\nconst organization = body.organization;\nconst user = body.user;\nconst vehicle = body.vehicle;\nconst attachments = body.attachments;\n```\n\n### From Attachment extractedText:\nParse the text to extract:\n```javascript\n// Example parsing logic\nconst quoteText = attachments[0].extractedText;\n\n// Extract supplier info (usually at top)\nconst supplierMatch = quoteText.match(/^(.+?)\\n/); // First line often has supplier name\nconst addressMatch = quoteText.match(/HIGHWAY.+?SK|[A-Z\\s]+,\\s[A-Z]{2}/);\nconst phoneMatch = quoteText.match(/\\(\\d{3}\\)\\s\\d{3}-\\d{4}/);\n\n// Extract quote metadata\nconst quoteNoMatch = quoteText.match(/Quote No:\\s*(\\d+)/);\nconst dateMatch = quoteText.match(/DEC\\s\\d{2}/);\nconst expiresMatch = quoteText.match(/Expires:\\s*(.+)/);\nconst salespersonMatch = quoteText.match(/Slsprsn:\\s*(.+)/);\n\n// Extract vehicle info\nconst makeMatch = quoteText.match(/Make\\s+(\\w+)/);\nconst modelMatch = quoteText.match(/Model\\s+([\\w\\d]+)/);\nconst pinMatch = quoteText.match(/Pin\\s+([\\w\\d]+)/);\n\n// Extract items from table\nconst itemsRegex = /\\|\\s*(\\d+)\\s*\\|\\s*([\\w\\d]+)\\s*\\|.*?\\|\\s*([\\d.]+)\\s*\\|\\s*([\\d.]+)\\s*\\|/g;\n\n// Extract totals\nconst totalPartsMatch = quoteText.match(/Total Parts\\s*\\|\\s*([\\d.]+)/);\nconst totalLaborMatch = quoteText.match(/Total Labor\\s*\\|\\s*([\\d.]+)/);\nconst taxesMatch = quoteText.match(/Taxes\\s*\\|\\s*([\\d.]+)/);\nconst grandTotalMatch = quoteText.match(/Grand Total\\s*\\|\\s*([\\d.]+)/);\n\n// Extract special notes\nconst notesMatch = quoteText.match(/PARTS AVAILABLE.+/g);\nconst supersessionMatch = quoteText.match(/SUPPERCEEDED TO.+/);\n```\n\n## Data Type Requirements\n- **UUIDs**: Generate using `{{ $uuid }}` or extract from payload\n- **Timestamps**: Use `{{ $now }}` for current timestamp in ISO 8601 format\n- **Numbers**: Parse from extractedText and webhook, ensure numeric type\n- **Booleans**: Use `true`/`false`\n- **Enums**: \"OUTBOUND\", \"CONFIRMED\", \"PICKUP\", \"DELIVERY\", \"SPLIT\", \"QUOTE_APPROVED\"\n- **JSON objects**: For metadata fields, structure as valid JSON\n\n## Tool Usage Order\n1. **Parse attachments** - Extract quote data from `extractedText`\n2. **Reply to a message in Gmail** - Send complete HTML email (not a summary!)\n3. **EmailMessage table** - INSERT with attachment metadata\n4. **EmailThread table** - UPDATE status to \"COMPLETED\"\n5. **Order table** - UPDATE status to \"CONFIRMED\"\n6. **ActivityLog table** - INSERT with quote details\n\n## Critical Rules\n- ✅ ALWAYS parse attachment `extractedText` for quote details\n- ✅ Enrich email with BOTH webhook data AND parsed quote data\n- ✅ Include supplier information from quote\n- ✅ Show vehicle/equipment details from quote\n- ✅ Display special notes (availability, supersessions) from quote\n- ✅ Cross-reference totals between webhook and quote for accuracy\n- ✅ Store attachment metadata in email message record\n- ✅ **Send COMPLETE HTML email** - not a description, not a summary\n- ✅ Replace ALL placeholders in HTML template with real data\n- ✅ Send email FIRST before updating database\n- ✅ Use exact enum values for database fields\n- ✅ Generate new UUIDs for INSERT operations\n- ❌ DO NOT ignore attachment data - it contains critical quote details\n- ❌ DO NOT skip parsing extractedText\n- ❌ DO NOT use placeholder values - extract real data\n- ❌ DO NOT modify order totals or item prices\n- ❌ DO NOT summarize or describe the HTML email - send the actual HTML\n- ❌ DO NOT wrap HTML in markdown code blocks when sending via Gmail tool\n- ❌ DO NOT truncate or shorten the HTML email\n\n## HTML Email Generation Checklist\n\nBefore calling the Gmail tool, verify your HTML email has:\n- [ ] Complete DOCTYPE and html tags\n- [ ] All CSS in style section\n- [ ] Every [PLACEHOLDER] replaced with actual data\n- [ ] All prices formatted with $ and 2 decimals\n- [ ] All dates in readable format\n- [ ] Supplier info from extractedText\n- [ ] Quote number from extractedText\n- [ ] Vehicle/equipment details from extractedText\n- [ ] Items table with all order items\n- [ ] Special notes if any exist\n- [ ] Complete totals section\n- [ ] Fulfillment details based on method\n- [ ] Organization contact info in footer\n- [ ] Closes with </html> tag\n- [ ] NO markdown backticks or code block syntax\n- [ ] NO description like \"A professional HTML email...\"\n\n## Error Handling\nIf attachment parsing fails:\n- Log the error with attachment ID\n- Fall back to webhook data only\n- Note in email that quote details may be incomplete\n\nIf any database step fails:\n- Log the specific error (which tool, what data, what field)\n- Do NOT proceed to next step\n- Return error details for debugging\n\nIf HTML email generation seems incomplete:\n- Review the checklist above\n- Ensure ALL data is extracted before generating HTML\n- Double-check that you're providing complete HTML, not a summary\n\n## Success Response\nReturn a summary confirming:\n1. ✅ Quote data parsed from attachment (ID: [attachment_id])\n2. ✅ HTML email generated with [X] items and complete formatting\n3. ✅ Email sent to [supplier email] with quote #[quote_number]\n4. ✅ Email record created (ID: [message_id])\n5. ✅ Thread updated (ID: [thread_id])\n6. ✅ Order confirmed (Number: [order_number])\n7. ✅ Activity logged with quote reference\n\n## Example of Correct Gmail Tool Call\n\n**CORRECT - Complete HTML:**\n```\nMessage parameter contains:\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Order Confirmation</title>\n  <style>\n    body { font-family: Arial, Helvetica, sans-serif; ... }\n    [all other styles]\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Acme Parts Supply</h1>\n      <p>Order Confirmation</p>\n    </div>\n    <div class=\"content\">\n      <p>Dear <strong>John Smith</strong>,</p>\n      [complete email content with all real data]\n    </div>\n  </div>\n</body>\n</html>\n```\n\n**INCORRECT - Summary or description:**\n```\nMessage parameter contains:\n\"A professional HTML email confirming order #12345 with supplier BRANDT TRACTOR LTD\"\n```\n\n**INCORRECT - Markdown wrapped:**\nMessage parameter contains:\nhtml<!DOCTYPE html>\n...\n\nRemember: Parse attachment quote data → Extract ALL required fields → Generate COMPLETE HTML with real data\n→ Send via Gmail → Update database in order → Confirm success. Use ALL available data sources for the most accurate and professional order confirmation."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        -3792,
+        608
+      ],
+      "id": "b6bd683a-ad6a-4253-b63a-f977ddbb4d40",
+      "name": "Order Confirmation Agent",
+      "alwaysOutputData": false,
+      "retryOnFail": false,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [
+        -2992,
+        800
+      ],
+      "id": "98152804-90d1-450a-8907-ed7e00906e89",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('ORDER CONFIRMATION').item.json.body.emailThread.id }}",
+        "message": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Message', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.1,
+      "position": [
+        -3152,
+        800
+      ],
+      "id": "e1b58d61-5b6e-4bdf-9e61-8e10a74d9186",
+      "name": "Reply to a message in Gmail",
+      "webhookId": "62a5840c-9bd7-4536-ba44-e09e22920ec0",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ExAlpKo2YjJs1WDH",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "ORDER CONFIRMATION": {
+      "main": [
+        [
+          {
+            "node": "ORDER VARIABLES",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ORDER VARIABLES": {
+      "main": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order table": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmailThread table": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EmailMessage table": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ActivityLog table": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Order Confirmation Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to ORDER CONFIRMATION",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculator": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply to a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "Order Confirmation Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "16bb6e4703e9bb77f0308d1733bd5fa0cbacadc025be0d68d1955e998d6a9b08"
+  }
+}

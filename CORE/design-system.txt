@@ -1,0 +1,183 @@
+# Construction Fleet Management Dashboard - Design System Documentation
+
+## Overview
+This document outlines the comprehensive design system for the Construction Vehicle Parts Sourcing SaaS dashboard, including color schemes, typography, component patterns, and visual hierarchy guidelines.
+
+## Color Palette
+
+### Primary Colors
+- **Primary Blue**: `#0072B8` (oklch(0.486 0.171 231.738))
+  - Used for: Main actions, branding, primary buttons, navigation active states
+  - Variants: `bg-primary`, `text-primary`, `border-primary`
+
+- **Secondary Orange**: `#FBBF24` (oklch(0.8 0.15 85.87))
+  - Used for: Accent elements, secondary actions, highlights (especially in Parts Search)
+  - Variants: `bg-secondary`, `text-secondary`, `accent`
+
+### Background & Surface Colors
+- **Background**: `#F9FAFB` (oklch(0.98 0.002 106.423)) - Main page background
+- **Card Background**: `#FFFFFF` - Card and component backgrounds
+- **Muted Background**: `#D1D5DB` - Subtle backgrounds and disabled states
+- **Border**: `#E5E7EB` - Borders, dividers, and subtle separations
+
+### Status & Semantic Colors
+- **Success/Green**: `#10B981` - Success states, active vehicles, positive metrics
+- **Warning/Yellow**: `#F59E0B` - Pending states, maintenance due, caution alerts
+- **Error/Red**: `#DC2626` - Error states, critical alerts, inactive vehicles
+- **Info/Blue**: Various blue shades - Informational states, neutral data
+
+### Text Colors
+- **Primary Text**: `#1F2937` (oklch(0.278 0.029 256.848)) - Main content text
+- **Secondary Text**: `#6B7280` - Metadata, descriptions, secondary information
+- **Muted Text**: `#9CA3AF` - Placeholder text, disabled states
+
+## Typography System
+
+### Font Families
+- **Primary**: Geist Sans - Modern, clean sans-serif for all UI text
+- **Monospace**: Geist Mono - Technical data, serial numbers, part numbers
+
+### Typography Scale
+- **Page Titles**: `text-3xl font-bold` (30px) - Main page headings
+- **Section Headers**: `text-xl font-semibold` (20px) - Card titles, major sections
+- **Subsection Headers**: `text-lg font-semibold` (18px) - Table headers, form sections
+- **Body Text**: `text-sm` (14px) - Standard content, table data
+- **Small Text**: `text-xs` (12px) - Metadata, timestamps, secondary info
+- **Large Numbers**: `text-2xl font-bold` (24px) - Statistics, metrics, KPIs
+
+### Font Weights
+- **Bold**: `font-bold` (700) - Headings, important data
+- **Semibold**: `font-semibold` (600) - Subheadings, labels
+- **Medium**: `font-medium` (500) - Emphasized text
+- **Regular**: `font-normal` (400) - Body text
+
+## Component Design Patterns
+
+### Cards
+- **Structure**: Rounded corners (`rounded-xl`), subtle shadows (`shadow-sm`)
+- **Background**: White with light gray border
+- **Padding**: Consistent `py-6 px-6` for content areas
+- **Headers**: `border-b` divider, reduced padding for compact headers
+
+### Buttons
+- **Primary**: Blue background (`bg-primary`), white text, hover opacity
+- **Secondary**: Orange background (`bg-secondary`), dark text
+- **Outline**: Transparent background, colored border, hover fill
+- **Ghost**: Transparent, hover background change
+- **Sizes**: Small (`h-8`), Default (`h-9`), Large (`h-10`)
+
+### Badges & Status Indicators
+- **Design**: Small, rounded (`rounded-md`), consistent text size (`text-xs`)
+- **Colors**: Semantic color mapping (green=active, red=inactive, yellow=pending)
+- **Usage**: Status indicators, categories, quick visual identification
+
+### Tables
+- **Headers**: Semibold text, consistent alignment
+- **Rows**: Hover states (`hover:bg-gray-50`), alternating backgrounds optional
+- **Data**: Right-aligned numbers, left-aligned text, consistent padding
+- **Actions**: Icon buttons, dropdown menus for row actions
+
+### Navigation
+- **Sidebar**: Collapsible (64px collapsed, 256px expanded)
+- **Items**: Icon + text pattern, consistent spacing
+- **Active State**: Background highlight, color change
+- **Hierarchy**: Clear visual distinction between sections
+
+## Layout Patterns
+
+### Grid System
+- **Responsive**: Mobile-first approach with breakpoint-specific layouts
+- **Cards**: `grid-cols-1 lg:grid-cols-3` for dashboard cards
+- **Tables**: Full-width with horizontal scroll on mobile
+- **Spacing**: Consistent gap values (`gap-4`, `gap-6`)
+
+### Spacing Scale
+- **Micro**: `space-1` (4px) - Icon gaps, tight spacing
+- **Small**: `space-2` (8px) - Form elements, close relationships
+- **Medium**: `space-4` (16px) - Card gaps, section spacing
+- **Large**: `space-6` (24px) - Major section separation
+- **Extra Large**: `space-8` (32px) - Page-level spacing
+
+### Container Patterns
+- **Page Container**: `max-w-7xl mx-auto px-4` - Main content wrapper
+- **Card Container**: `p-6` - Standard card padding
+- **Form Container**: `space-y-4` - Form field spacing
+
+## Visual Hierarchy
+
+### Information Architecture
+1. **Page Title** - Largest text, bold weight, primary color
+2. **Section Headers** - Medium size, semibold, clear grouping
+3. **Data Labels** - Small, muted color, consistent positioning
+4. **Content** - Standard size, readable contrast
+5. **Metadata** - Smallest size, muted color, secondary position
+
+### Color Usage Priority
+1. **Primary Blue** - Main actions, branding, navigation
+2. **Status Colors** - Data states, alerts, indicators
+3. **Secondary Orange** - Accents, highlights, secondary actions
+4. **Neutral Grays** - Text, backgrounds, borders
+
+## Interactive States
+
+### Hover States
+- **Buttons**: Opacity reduction (`hover:opacity-90`)
+- **Cards**: Subtle shadow increase
+- **Table Rows**: Background color change (`hover:bg-gray-50`)
+- **Links**: Underline appearance
+
+### Focus States
+- **Form Elements**: Ring outline (`focus:ring-2 focus:ring-primary`)
+- **Buttons**: Enhanced border and ring
+- **Navigation**: Clear focus indicators
+
+### Active States
+- **Navigation**: Background highlight, color change
+- **Buttons**: Pressed appearance with shadow reduction
+- **Form Elements**: Border color change
+
+## Responsive Design
+
+### Breakpoints
+- **Mobile**: `< 768px` - Single column layouts, collapsed navigation
+- **Tablet**: `768px - 1024px` - Two-column layouts, expanded navigation
+- **Desktop**: `> 1024px` - Multi-column layouts, full feature set
+
+### Mobile Adaptations
+- **Navigation**: Hamburger menu, overlay sidebar
+- **Tables**: Horizontal scroll, stacked layouts for complex data
+- **Cards**: Single column, reduced padding
+- **Typography**: Slightly smaller sizes for better mobile readability
+
+## Accessibility Guidelines
+
+### Color Contrast
+- **Text**: Minimum 4.5:1 ratio for normal text, 3:1 for large text
+- **Interactive Elements**: Clear focus indicators, sufficient color contrast
+- **Status Indicators**: Not relying solely on color, using icons/text
+
+### Typography
+- **Readability**: Sufficient line height (1.5), adequate font sizes
+- **Hierarchy**: Clear heading structure, logical reading order
+- **Spacing**: Adequate white space for easy scanning
+
+## Dark Mode Support
+
+The design system includes comprehensive dark mode support with:
+- **Background**: Dark gray (`oklch(0.145 0 0)`)
+- **Text**: Light colors with proper contrast ratios
+- **Cards**: Dark backgrounds with subtle borders
+- **Interactive Elements**: Adjusted colors maintaining usability
+
+## Implementation Notes
+
+### CSS Variables
+All colors are defined as CSS custom properties using OKLCH color space for better color consistency and manipulation.
+
+### Tailwind Configuration
+The system leverages Tailwind CSS with custom theme extensions for consistent spacing, colors, and typography.
+
+### Component Library
+Built on shadcn/ui components with custom styling to match the construction industry aesthetic.
+
+This design system ensures consistency across all dashboard pages while maintaining the professional, industrial aesthetic appropriate for construction fleet management software.

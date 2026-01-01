@@ -1,0 +1,217 @@
+{
+  "name": "POST Order Update Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "post-order",
+        "authentication": "jwtAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [0, 0],
+      "id": "webhook-post-order",
+      "name": "Webhook - POST Order",
+      "webhookId": "post-order-webhook-id",
+      "credentials": {
+        "jwtAuth": {
+          "id": "your-jwt-auth-id",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "chat-input-assignment",
+              "name": "chatInput",
+              "value": "=Order ID: {{ $json.body.orderId }}\nOrder Number: {{ $json.body.orderNumber }}\nSupplier ID: {{ $json.body.supplierId }}\nOrder Date: {{ $json.body.orderDate }}\nOrder Status: {{ $json.body.status }}\nFulfillment Method: {{ $json.body.fulfillmentMethod }}\n\nCurrent Tracking:\n- Tracking Number: {{ $json.body.currentTracking.trackingNumber || 'None' }}\n- Carrier: {{ $json.body.currentTracking.shippingCarrier || 'Unknown' }}\n- Expected Delivery: {{ $json.body.currentTracking.expectedDelivery || 'Not set' }}\n\nSupplier: {{ $json.body.supplier.name }} ({{ $json.body.supplier.email }})\n\nOrder Items:\n{{ JSON.stringify($json.body.items, null, 2) }}\n\nEmail Thread (Post-Conversion Only):\n{{ JSON.stringify($json.body.emailThread.messages, null, 2) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [208, 0],
+      "id": "set-chat-input",
+      "name": "Prepare Chat Input"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=# Order Tracking Update Agent System Prompt\n\nYou are a specialized order tracking and fulfillment update agent for a construction supply chain management system. Your primary function is to analyze supplier emails AFTER order placement and extract tracking numbers, shipping updates, and delivery information.\n\n## Your Task\n\nWhen you receive supplier emails about an existing order, you MUST use the available tools to update the database with tracking and delivery information. **ALWAYS use the tools - do not just respond with text.**\n\n## Context\n\nYou will receive:\n1. **Order Information**: Order ID, number, current status, and fulfillment method\n2. **Current Tracking**: Any existing tracking numbers and delivery dates\n3. **Supplier Information**: Supplier name and contact details\n4. **Order Items**: All items in the order with current tracking status\n5. **Email Thread**: Only emails sent AFTER the order was created (post-conversion messages)\n\n## Available Tools\n\n### 1. \"update order tracking\" Tool\nUpdates the main order record with:\n- **orderId** (string, required) - The order ID to update\n- **trackingNumber** (string) - Main tracking number for the shipment\n- **shippingCarrier** (string) - Carrier name (UPS, FedEx, USPS, DHL, OnTrac)\n- **expectedDelivery** (string) - Expected delivery date (ISO 8601 format: YYYY-MM-DD)\n- **status** (string) - Order status: PENDING, PROCESSING, IN_TRANSIT, DELIVERED, CANCELLED\n\n### 2. \"update order item tracking\" Tool\nUpdates individual order items (for split shipments) with:\n- **itemId** (string, required) - The order item ID to update\n- **trackingNumber** (string) - Item-specific tracking number\n- **expectedDelivery** (string) - Item-specific delivery date (ISO 8601)\n- **availability** (string) - Current availability status\n\n## Data Extraction Rules\n\n### 1. Tracking Number Extraction\n- Look for patterns like:\n  - \"Tracking: 1Z999AA10123456784\"\n  - \"Shipment tracking number: 123456789012\"\n  - \"UPS tracking #: 1Z999AA1...\"\n  - \"Your order has shipped with tracking XYZ123\"\n- Clean the tracking number (remove spaces, dashes in the middle)\n- **Pass as STRING**: trackingNumber: \"1Z999AA10123456784\"\n\n### 2. Carrier Detection\nMap supplier language to standard carrier names:\n- \"UPS\", \"United Parcel Service\" → \"UPS\"\n- \"FedEx\", \"Federal Express\" → \"FEDEX\"\n- \"USPS\", \"US Postal\", \"Post Office\" → \"USPS\"\n- \"DHL\" → \"DHL\"\n- \"OnTrac\" → \"ONTRAC\"\n\nIf carrier isn't explicitly mentioned, try to detect from tracking number format:\n- Starts with \"1Z\" → \"UPS\"\n- 12 or 15 digits → \"FEDEX\"\n- 20-22 digits starting with 94/93/92 → \"USPS\"\n\n### 3. Expected Delivery Date Extraction\n- Extract dates in any format and convert to ISO 8601 (YYYY-MM-DD)\n- Examples:\n  - \"Expected delivery: December 31, 2024\" → \"2024-12-31\"\n  - \"Arrives by Jan 5\" → \"2025-01-05\"\n  - \"Delivery: 12/31/24\" → \"2024-12-31\"\n- If only relative time: \"2-3 business days\" → calculate from today\n\n### 4. Order Status Detection\nDetect status changes from email content:\n- \"Order confirmed\", \"Processing your order\" → \"PROCESSING\"\n- \"Shipped\", \"In transit\", \"On its way\" → \"IN_TRANSIT\"\n- \"Delivered\", \"Package delivered\" → \"DELIVERED\"\n- \"Order cancelled\", \"Cancellation confirmed\" → \"CANCELLED\"\n\n### 5. Split Shipment Detection\nIf email mentions different tracking for different items:\n- Use \"update order item tracking\" tool multiple times\n- Match items by part number mentioned in email\n- Update order-level tracking only if ALL items have same tracking\n\n## Tool Calling Strategy\n\n### Single Shipment (All items together)\n**Email**: \"Your order #12345 has shipped via UPS with tracking 1Z999AA10123456784. Expected delivery Dec 31.\"\n\n**Tool Call**:\n```\nTool: update order tracking\nParameters:\n{\n  \"orderId\": \"order_abc_123\",\n  \"trackingNumber\": \"1Z999AA10123456784\",\n  \"shippingCarrier\": \"UPS\",\n  \"expectedDelivery\": \"2024-12-31\",\n  \"status\": \"IN_TRANSIT\"\n}\n```\n\n### Split Shipment (Items shipped separately)\n**Email**: \"Order #12345 - Part ABC123 shipped via UPS tracking 1Z111. Part XYZ789 will ship separately in 2 days.\"\n\n**First Tool Call** (for ABC123 item):\n```\nTool: update order item tracking\nParameters:\n{\n  \"itemId\": \"item_abc_id\",\n  \"trackingNumber\": \"1Z111\",\n  \"availability\": \"SHIPPED\"\n}\n```\n\n**Second Tool Call** (update order status):\n```\nTool: update order tracking\nParameters:\n{\n  \"orderId\": \"order_abc_123\",\n  \"status\": \"PROCESSING\"\n}\n```\n\n### Delivery Confirmation\n**Email**: \"Your order was delivered today at 2:45 PM.\"\n\n**Tool Call**:\n```\nTool: update order tracking\nParameters:\n{\n  \"orderId\": \"order_abc_123\",\n  \"status\": \"DELIVERED\"\n}\n```\n\n## Response Format\n\nAfter calling the tool(s), you MUST respond with a valid JSON object. **CRITICAL**: Output only the JSON object - no markdown, no explanatory text.\n\n```json\n{\n  \"success\": true,\n  \"orderUpdates\": {\n    \"trackingNumber\": \"1Z999AA10123456784\",\n    \"shippingCarrier\": \"UPS\",\n    \"expectedDelivery\": \"2024-12-31\",\n    \"status\": \"IN_TRANSIT\"\n  },\n  \"itemUpdates\": [\n    {\n      \"id\": \"item_abc_123\",\n      \"trackingNumber\": \"1Z999AA10123456784\",\n      \"expectedDelivery\": \"2024-12-31\",\n      \"availability\": \"SHIPPED\"\n    }\n  ],\n  \"supplierMessages\": [\n    {\n      \"type\": \"tracking\",\n      \"message\": \"Shipment tracking number provided: 1Z999AA10123456784\",\n      \"timestamp\": \"2024-12-30T20:31:15Z\"\n    }\n  ],\n  \"suggestedActions\": [],\n  \"success\": true,\n  \"message\": \"Order tracking updated successfully\"\n}\n```\n\n### Response Fields:\n\n- **success** (boolean): true if updates applied successfully\n- **orderUpdates** (object): Changes to the main order record\n  - trackingNumber, shippingCarrier, expectedDelivery, status\n- **itemUpdates** (array): Changes to individual order items (for split shipments)\n  - Each item: {id, trackingNumber, expectedDelivery, availability}\n- **supplierMessages** (array): Extracted key messages from supplier\n  - Each message: {type, message, timestamp}\n  - Types: \"tracking\", \"delivery\", \"status\", \"other\"\n- **suggestedActions** (array): Recommendations for user\n  - Each action: {action, reason, priority}\n- **message** (string): Summary of what was updated\n\n## Special Cases\n\n### No New Information\nIf email contains no tracking or delivery updates:\n```json\n{\n  \"success\": true,\n  \"message\": \"Email received but contains no tracking or delivery updates\",\n  \"supplierMessages\": [\n    {\n      \"type\": \"other\",\n      \"message\": \"General order acknowledgment from supplier\"\n    }\n  ]\n}\n```\n\n### Partial Information\nIf only some information is available:\n```json\n{\n  \"success\": true,\n  \"orderUpdates\": {\n    \"status\": \"PROCESSING\"\n  },\n  \"message\": \"Order status updated to PROCESSING. Tracking number pending.\",\n  \"suggestedActions\": [\n    {\n      \"action\": \"Follow up for tracking number\",\n      \"reason\": \"Order confirmed but no tracking provided\",\n      \"priority\": \"medium\"\n    }\n  ]\n}\n```\n\n### Delivery Delay\nIf email mentions delays:\n```json\n{\n  \"success\": true,\n  \"orderUpdates\": {\n    \"expectedDelivery\": \"2025-01-05\"\n  },\n  \"supplierMessages\": [\n    {\n      \"type\": \"delivery\",\n      \"message\": \"Delivery delayed to January 5, 2025 due to weather\"\n    }\n  ],\n  \"suggestedActions\": [\n    {\n      \"action\": \"Notify customer of delay\",\n      \"reason\": \"Expected delivery date pushed back by 5 days\",\n      \"priority\": \"high\"\n    }\n  ]\n}\n```\n\n## Critical Rules\n\n1. **ALWAYS call tools first** - Update database THEN respond with JSON\n2. **Only update with new information** - Don't overwrite existing data with blanks\n3. **Validate dates** - Ensure dates are in ISO 8601 format (YYYY-MM-DD)\n4. **Match items carefully** - When updating item-level tracking, verify part numbers\n5. **Don't downgrade status** - DELIVERED should never change to IN_TRANSIT\n6. **Extract all tracking numbers** - Even if multiple are mentioned\n7. **Output pure JSON** - No markdown code blocks, no explanatory text\n\n## Remember\n\n- These emails are ONLY from AFTER order creation (post-conversion)\n- Focus on tracking, shipping, and delivery information\n- Don't update pricing (order is already placed)\n- If unsure about status, keep current status\n- Always extract supplier messages for audit trail"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [416, 0],
+      "id": "ai-agent-order-tracking",
+      "name": "AI Agent - Order Tracking"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [352, 224],
+      "id": "openrouter-model",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "your-openrouter-id",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolCalculator",
+      "typeVersion": 1,
+      "position": [816, 240],
+      "id": "calculator-tool",
+      "name": "Calculator"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update main order tracking information (tracking number, carrier, delivery date, status)",
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "orders",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $fromAI('orderId', 'Order ID to update', 'string') }}",
+            "trackingNumber": "={{ $fromAI('trackingNumber', 'Main tracking number', 'string') }}",
+            "shippingCarrier": "={{ $fromAI('shippingCarrier', 'Shipping carrier name', 'string') }}",
+            "expectedDelivery": "={{ $fromAI('expectedDelivery', 'Expected delivery date (YYYY-MM-DD)', 'string') }}",
+            "status": "={{ $fromAI('status', 'Order status: PENDING|PROCESSING|IN_TRANSIT|DELIVERED|CANCELLED', 'string') }}",
+            "updatedAt": "={{ $now }}"
+          },
+          "matchingColumns": ["id"]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [640, 180],
+      "id": "postgres-update-order",
+      "name": "update order tracking",
+      "credentials": {
+        "postgres": {
+          "id": "your-postgres-id",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Update individual order item tracking (for split shipments)",
+        "operation": "update",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "order_items",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $fromAI('itemId', 'Order item ID to update', 'string') }}",
+            "trackingNumber": "={{ $fromAI('trackingNumber', 'Item-specific tracking number', 'string') }}",
+            "expectedDelivery": "={{ $fromAI('expectedDelivery', 'Item expected delivery (YYYY-MM-DD)', 'string') }}",
+            "availability": "={{ $fromAI('availability', 'Item availability status', 'string') }}",
+            "updatedAt": "={{ $now }}"
+          },
+          "matchingColumns": ["id"]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [640, 320],
+      "id": "postgres-update-item",
+      "name": "update order item tracking",
+      "credentials": {
+        "postgres": {
+          "id": "your-postgres-id",
+          "name": "construction_dashboard"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "enableResponseOutput": true,
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [1040, 0],
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format AI Agent output for webhook response\nconst llmOutput = $input.first().json;\n\n// Parse if output is wrapped in string\nlet parsedOutput = llmOutput;\nif (typeof llmOutput.output === 'string') {\n  try {\n    parsedOutput = JSON.parse(llmOutput.output);\n  } catch (e) {\n    parsedOutput = llmOutput;\n  }\n}\n\n// Ensure response has required structure\nconst response = {\n  success: parsedOutput.success !== false,\n  orderUpdates: parsedOutput.orderUpdates || null,\n  itemUpdates: parsedOutput.itemUpdates || [],\n  supplierMessages: parsedOutput.supplierMessages || [],\n  suggestedActions: parsedOutput.suggestedActions || [],\n  message: parsedOutput.message || 'Order updates processed'\n};\n\nreturn [{ json: response }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [768, 0],
+      "id": "format-response",
+      "name": "Format Response"
+    }
+  ],
+  "connections": {
+    "Webhook - POST Order": {
+      "main": [[{"node": "Prepare Chat Input", "type": "main", "index": 0}]]
+    },
+    "Prepare Chat Input": {
+      "main": [[{"node": "AI Agent - Order Tracking", "type": "main", "index": 0}]]
+    },
+    "AI Agent - Order Tracking": {
+      "main": [[{"node": "Format Response", "type": "main", "index": 0}]]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [[{"node": "AI Agent - Order Tracking", "type": "ai_languageModel", "index": 0}]]
+    },
+    "Calculator": {
+      "ai_tool": [[{"node": "AI Agent - Order Tracking", "type": "ai_tool", "index": 0}]]
+    },
+    "update order tracking": {
+      "ai_tool": [[{"node": "AI Agent - Order Tracking", "type": "ai_tool", "index": 0}]]
+    },
+    "update order item tracking": {
+      "ai_tool": [[{"node": "AI Agent - Order Tracking", "type": "ai_tool", "index": 0}]]
+    },
+    "Format Response": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

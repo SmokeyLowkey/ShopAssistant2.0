@@ -145,7 +145,25 @@ export async function GET(
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
-    
+
+    // DEBUG: Log order timestamps
+    console.log('=== API ORDER TIMESTAMPS DEBUG ===');
+    console.log('orderDate:', order.orderDate);
+    console.log('orderDate type:', typeof order.orderDate);
+    console.log('orderDate toISOString:', order.orderDate.toISOString());
+    console.log('createdAt:', order.createdAt);
+    console.log('createdAt type:', typeof order.createdAt);
+    console.log('createdAt toISOString:', order.createdAt.toISOString());
+
+    // Raw query to verify actual database values
+    const rawOrder = await prisma.$queryRaw`
+      SELECT "orderDate", "createdAt"
+      FROM orders
+      WHERE id = ${id}
+    `;
+    console.log('=== RAW QUERY RESULT ===');
+    console.log('Raw query result:', rawOrder);
+
     return NextResponse.json(order)
   } catch (error) {
     console.error("Error fetching order:", error)

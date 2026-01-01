@@ -8,11 +8,10 @@ import { VehicleType, VehicleStatus } from "@prisma/client"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { ChevronLeft, Save, Truck } from "lucide-react"
+import { ChevronLeft, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -51,15 +50,6 @@ export default function NewVehiclePage() {
     resolver: zodResolver(vehicleFormSchema),
     defaultValues,
   })
-
-  // Test function to verify toast is working
-  const testToast = () => {
-    console.log("Test toast triggered")
-    toast({
-      title: "Test Toast",
-      description: "If you can see this, toasts are working!",
-    })
-  }
 
   // Form submission handler
   async function onSubmit(data: VehicleFormValues) {
@@ -139,19 +129,13 @@ export default function NewVehiclePage() {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Link href="/vehicles">
-            <Button variant="outline" size="icon">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <h1 className="text-3xl font-bold">Add New Vehicle</h1>
-        </div>
-        {/* Test Toast Button */}
-        <Button onClick={testToast} variant="secondary">
-          Test Toast
-        </Button>
+      <div className="flex items-center gap-2 mb-6">
+        <Link href="/vehicles">
+          <Button variant="outline" size="icon">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <h1 className="text-3xl font-bold">Add New Vehicle</h1>
       </div>
 
       <Card>

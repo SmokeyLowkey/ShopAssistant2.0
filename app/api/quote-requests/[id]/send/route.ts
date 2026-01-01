@@ -105,6 +105,48 @@ export async function POST(
           continue;
         }
 
+        // Create or get supplier-specific quote items
+        // This ensures each supplier has their own set of items that can be independently priced
+        const supplierItems = await Promise.all(
+          quoteRequest.items.map(async (item) => {
+            // Check if a supplier-specific item already exists
+            const existingSupplierItem = await prisma.quoteRequestItem.findFirst({
+              where: {
+                quoteRequestId: quoteRequest.id,
+                supplierId: supplier.id,
+                partNumber: item.partNumber,
+              },
+            });
+
+            if (existingSupplierItem) {
+              return existingSupplierItem;
+            }
+
+            // Create a new supplier-specific item if it doesn't exist
+            return await prisma.quoteRequestItem.create({
+              data: {
+                quoteRequestId: quoteRequest.id,
+                supplierId: supplier.id,
+                partNumber: item.partNumber,
+                description: item.description,
+                quantity: item.quantity,
+                // Copy other fields if they exist
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                supplierPartNumber: item.supplierPartNumber,
+                leadTime: item.leadTime,
+                isAlternative: item.isAlternative,
+                notes: item.notes,
+                availability: item.availability,
+                estimatedDeliveryDays: item.estimatedDeliveryDays,
+                suggestedFulfillmentMethod: item.suggestedFulfillmentMethod,
+              },
+            });
+          })
+        );
+
+        console.log(`[Send Quote] Created/retrieved ${supplierItems.length} supplier-specific items for ${supplier.name}`);
+
         // Prepare data for the email webhook with complete payload structure
         const emailData = {
           quoteRequestId: quoteRequest.id,
@@ -113,14 +155,14 @@ export async function POST(
           isPrimary: supplier.isPrimary,
           suggestedFulfillmentMethod: quoteRequest.suggestedFulfillmentMethod || undefined,
           pickListId: quoteRequest.pickListId || undefined,
-          
+
           // Timing information
           timing: {
             requestDate: quoteRequest.requestDate.toISOString(),
             expiryDate: quoteRequest.expiryDate?.toISOString(),
             expectedResponseDate: quoteRequest.expiryDate?.toISOString(),
           },
-          
+
           // Supplier information
           supplier: {
             id: supplier.id,
@@ -128,9 +170,10 @@ export async function POST(
             email: supplier.email,
             contactPerson: supplier.contactPerson || undefined,
           },
-          
-          // Items
-          items: quoteRequest.items.map(item => ({
+
+          // Items - use supplier-specific items with their IDs
+          items: supplierItems.map(item => ({
+            id: item.id, // Include the supplier-specific item ID
             partNumber: item.partNumber,
             description: item.description,
             quantity: item.quantity,
@@ -225,12 +268,23 @@ export async function POST(
 
       if (quoteRequestWithThreads && quoteRequestWithThreads.emailThread.length > 0) {
         console.log(`Found ${quoteRequestWithThreads.emailThread.length} email threads to link`);
-        
-        // Create junction table entries for each supplier
-        for (let i = 0; i < allSuppliers.length && i < quoteRequestWithThreads.emailThread.length; i++) {
-          const supplier = allSuppliers[i];
-          const emailThread = quoteRequestWithThreads.emailThread[i];
-          
+
+        // Get threads with their messages to match by recipient email
+        const threadsWithMessages = await prisma.emailThread.findMany({
+          where: {
+            id: { in: quoteRequestWithThreads.emailThread.map(t => t.id) },
+          },
+          include: {
+            messages: {
+              where: { direction: 'OUTBOUND' }, // Only check outbound messages
+              take: 1,
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        });
+
+        // Create junction table entries by matching supplier email to thread recipient
+        for (const supplier of allSuppliers) {
           try {
             // Check if link already exists
             const existingLink = await prisma.quoteRequestEmailThread.findUnique({
@@ -242,20 +296,33 @@ export async function POST(
               },
             });
 
-            if (!existingLink) {
-              await prisma.quoteRequestEmailThread.create({
-                data: {
-                  quoteRequestId: quoteRequestId,
-                  emailThreadId: emailThread.id,
-                  supplierId: supplier.id,
-                  isPrimary: supplier.isPrimary,
-                  status: 'SENT',
-                },
-              });
-              console.log(`Linked email thread ${emailThread.id} to supplier ${supplier.name}`);
-            } else {
+            if (existingLink) {
               console.log(`Link already exists for supplier ${supplier.name}`);
+              continue;
             }
+
+            // Find the email thread that was sent to this supplier
+            const matchingThread = threadsWithMessages.find(thread => {
+              const outboundMessage = thread.messages[0];
+              return outboundMessage && outboundMessage.to?.includes(supplier.email || '');
+            });
+
+            if (!matchingThread) {
+              console.warn(`No matching email thread found for supplier ${supplier.name} (${supplier.email})`);
+              continue;
+            }
+
+            // Create the link
+            await prisma.quoteRequestEmailThread.create({
+              data: {
+                quoteRequestId: quoteRequestId,
+                emailThreadId: matchingThread.id,
+                supplierId: supplier.id,
+                isPrimary: supplier.isPrimary,
+                status: 'SENT',
+              },
+            });
+            console.log(`Linked email thread ${matchingThread.id} to supplier ${supplier.name} (${supplier.email})`);
           } catch (linkError) {
             console.error(`Error linking thread for supplier ${supplier.name}:`, linkError);
           }

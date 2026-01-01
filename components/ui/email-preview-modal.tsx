@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDate } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { EmailEditorModal } from "@/components/ui/email-editor-modal";
+import { Loader2 } from "lucide-react";
 
 interface EmailPreviewModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface EmailPreviewModalProps {
   onRevise?: () => void;
   onEdit?: (editedEmail: any) => void; // New prop for handling edited email
   showApprovalButtons?: boolean;
+  isSending?: boolean; // New prop for showing loading state
 }
 
 export function EmailPreviewModal({
@@ -24,7 +26,8 @@ export function EmailPreviewModal({
   onApprove,
   onRevise,
   onEdit,
-  showApprovalButtons = false
+  showApprovalButtons = false,
+  isSending = false
 }: EmailPreviewModalProps) {
   const [activeTab, setActiveTab] = useState<'html' | 'text'>('html');
   const [showEditor, setShowEditor] = useState(false);
@@ -160,18 +163,27 @@ export function EmailPreviewModal({
                 variant="outline"
                 onClick={handleEditClick}
                 className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                disabled={isSending}
               >
                 {webhookResponse && actions?.edit?.label ? actions.edit.label : "Edit Email"}
               </Button>
               <Button
                 onClick={onApprove}
                 className="bg-green-600 hover:bg-green-700"
+                disabled={isSending}
               >
-                {webhookResponse && actions?.approve?.label ? actions.approve.label : "Approve & Send"}
+                {isSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  webhookResponse && actions?.approve?.label ? actions.approve.label : "Approve & Send"
+                )}
               </Button>
             </>
           )}
-          <Button onClick={() => onOpenChange(false)}>
+          <Button onClick={() => onOpenChange(false)} disabled={isSending}>
             Close
           </Button>
         </DialogFooter>

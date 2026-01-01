@@ -19,11 +19,11 @@ export async function POST(
 
     const params = await context.params;
     const quoteRequestId = params.id;
-    const { supplierId, emailThreadId, isPrimary } = await req.json();
+    const { supplierId, emailThreadId, isPrimary, status } = await req.json();
 
-    if (!supplierId || !emailThreadId) {
+    if (!supplierId) {
       return NextResponse.json(
-        { error: "supplierId and emailThreadId are required" },
+        { error: "supplierId is required" },
         { status: 400 }
       );
     }
@@ -50,14 +50,25 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Create the link
-    const link = await prisma.quoteRequestEmailThread.create({
-      data: {
+    // Use upsert to create or update the link
+    const link = await prisma.quoteRequestEmailThread.upsert({
+      where: {
+        quoteRequestId_supplierId: {
+          quoteRequestId,
+          supplierId,
+        },
+      },
+      update: {
+        ...(status && { status }),
+        ...(emailThreadId && { emailThreadId }),
+        ...(isPrimary !== undefined && { isPrimary }),
+      },
+      create: {
         quoteRequestId,
-        emailThreadId,
+        emailThreadId: emailThreadId || "",
         supplierId,
         isPrimary: isPrimary || false,
-        status: "SENT",
+        status: status || "SENT",
       },
       include: {
         supplier: {
@@ -80,14 +91,6 @@ export async function POST(
     return NextResponse.json({ data: link });
   } catch (error) {
     console.error("Error linking email thread to quote request:", error);
-    
-    // Handle unique constraint violation
-    if ((error as any).code === 'P2002') {
-      return NextResponse.json(
-        { error: "This supplier is already linked to this quote request" },
-        { status: 400 }
-      );
-    }
     
     return NextResponse.json(
       { error: "Failed to link email thread" },

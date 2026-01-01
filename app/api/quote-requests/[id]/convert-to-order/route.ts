@@ -138,8 +138,13 @@ export async function POST(
     // Generate an order number
     const orderNumber = `ORD-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
 
-    // Calculate order totals
-    const subtotal = quoteRequest.items.reduce(
+    // Filter items to only include those from the selected supplier
+    const selectedSupplierItems = quoteRequest.items.filter(
+      item => item.supplierId === finalSupplierId
+    );
+
+    // Calculate order totals from ONLY the selected supplier's items
+    const subtotal = selectedSupplierItems.reduce(
       (sum, item) => sum + (Number(item.unitPrice) || 0) * item.quantity,
       0
     );
@@ -204,9 +209,9 @@ export async function POST(
               },
             }
           : undefined,
-        // Create order items with fulfillment information
+        // Create order items with fulfillment information (ONLY for selected supplier)
         orderItems: {
-          create: await Promise.all(quoteRequest.items.map(async (item) => {
+          create: await Promise.all(selectedSupplierItems.map(async (item) => {
             // Get fulfillment method for this item (for split fulfillment)
             const itemMethod = itemFulfillment?.find((f: any) => f.itemId === item.id)?.method || fulfillmentMethod;
             
@@ -338,18 +343,13 @@ export async function POST(
       return NextResponse.json({ error: "Failed to retrieve created order" }, { status: 500 });
     }
 
-    // Update the quote request status
-    await prisma.quoteRequest.update({
-      where: {
-        id: quoteRequestId,
-      },
-      data: {
-        status: QuoteStatus.CONVERTED_TO_ORDER,
-      },
+    // Get the selected supplier object
+    const selectedSupplier = await prisma.supplier.findUnique({
+      where: { id: finalSupplierId },
     });
 
     // If the supplier has an email, send an order confirmation email
-    if (quoteRequest.supplier.email) {
+    if (selectedSupplier?.email) {
       try {
         // Get organization details
         const organization = await prisma.organization.findUnique({
@@ -374,20 +374,20 @@ export async function POST(
           fulfillmentMethod: fulfillmentMethod as 'PICKUP' | 'DELIVERY' | 'SPLIT',
           partialFulfillment: fulfillmentMethod === 'SPLIT',
           
-          // Supplier information
+          // Supplier information (ONLY selected supplier)
           supplier: {
-            id: quoteRequest.supplier.id,
-            name: quoteRequest.supplier.name,
-            email: quoteRequest.supplier.email,
-            type: quoteRequest.supplier.type,
-            contactPerson: quoteRequest.supplier.contactPerson || undefined,
-            phone: quoteRequest.supplier.phone || undefined,
-            address: quoteRequest.supplier.address ? {
-              street: quoteRequest.supplier.address || undefined,
-              city: quoteRequest.supplier.city || undefined,
-              state: quoteRequest.supplier.state || undefined,
-              zipCode: quoteRequest.supplier.zipCode || undefined,
-              country: quoteRequest.supplier.country || undefined,
+            id: selectedSupplier.id,
+            name: selectedSupplier.name,
+            email: selectedSupplier.email,
+            type: selectedSupplier.type,
+            contactPerson: selectedSupplier.contactPerson || undefined,
+            phone: selectedSupplier.phone || undefined,
+            address: selectedSupplier.address ? {
+              street: selectedSupplier.address || undefined,
+              city: selectedSupplier.city || undefined,
+              state: selectedSupplier.state || undefined,
+              zipCode: selectedSupplier.zipCode || undefined,
+              country: selectedSupplier.country || undefined,
             } : undefined,
           },
           
@@ -474,10 +474,10 @@ export async function POST(
             } : undefined;
           })() : undefined,
           
-          // Items with detailed information
+          // Items with detailed information (ONLY selected supplier's items)
           items: orderWithItems.orderItems.map(item => {
             // Get the corresponding quote request item for additional information
-            const quoteItem = quoteRequest.items.find(qi => qi.partId === item.partId);
+            const quoteItem = selectedSupplierItems.find(qi => qi.partId === item.partId);
             
             return {
               id: item.id,
@@ -539,75 +539,42 @@ export async function POST(
           },
         };
 
-        // Call the webhook to generate the email with fulfillment information
-        const emailResponse = await generateOrderConfirmationEmail(emailData);
+        // Call the webhook to generate and send the order confirmation email
+        // The n8n workflow handles ALL database operations:
+        // - Generates email content
+        // - Inserts EmailMessage record
+        // - Updates EmailThread status to CONVERTED_TO_ORDER
+        // - Inserts ActivityLog
+        // We just need to wait for 200 OK response (5 minute timeout)
+        await generateOrderConfirmationEmail(emailData);
 
-        // Add the confirmation email to the email thread
-        if (selectedEmailThread) {
-          await prisma.emailMessage.create({
-            data: {
-              direction: "OUTBOUND",
-              from: user.email || "noreply@example.com",
-              to: quoteRequest.supplier.email,
-              subject: emailResponse.emailContent.subject,
-              body: emailResponse.emailContent.body,
-              bodyHtml: emailResponse.emailContent.bodyHtml,
-              sentAt: new Date(),
-              externalMessageId: emailResponse.messageId,
-              thread: {
-                connect: {
-                  id: selectedEmailThread.id,
-                },
-              },
-            },
-          });
+        // Webhook returned 200 OK - order confirmation successfully processed
+        console.log('Order confirmation webhook completed successfully - email sent and database updated by n8n');
 
-          // Update the email thread status
-          await prisma.emailThread.update({
-            where: {
-              id: selectedEmailThread.id,
-            },
-            data: {
-              status: "CONVERTED_TO_ORDER",
-            },
-          });
-        }
-        
-        // If the webhook response includes updated order information, update the order
-        if (emailResponse.orderUpdates) {
-          await prisma.order.update({
-            where: { id: order.id },
-            data: {
-              trackingNumber: emailResponse.orderUpdates.trackingNumber || order.trackingNumber,
-              shippingCarrier: emailResponse.orderUpdates.shippingCarrier || order.shippingCarrier,
-              expectedDelivery: emailResponse.orderUpdates.expectedDeliveryDate 
-                ? new Date(emailResponse.orderUpdates.expectedDeliveryDate) 
-                : order.expectedDelivery,
-              // Add any other fields that might be updated by the webhook
-            },
-          });
-          
-          // Update order items if needed
-          if (emailResponse.orderUpdates.items && emailResponse.orderUpdates.items.length > 0) {
-            for (const itemUpdate of emailResponse.orderUpdates.items) {
-              await prisma.orderItem.update({
-                where: { id: itemUpdate.id },
-                data: {
-                  availability: itemUpdate.availability || undefined,
-                  trackingNumber: itemUpdate.trackingNumber || undefined,
-                  expectedDelivery: itemUpdate.expectedDeliveryDate 
-                    ? new Date(itemUpdate.expectedDeliveryDate) 
-                    : undefined,
-                  // Add any other item fields that might be updated
-                },
-              });
-            }
-          }
-        }
+        // CRITICAL: Only update quote status to CONVERTED_TO_ORDER after webhook succeeds with 200 OK
+        await prisma.quoteRequest.update({
+          where: {
+            id: quoteRequestId,
+          },
+          data: {
+            status: QuoteStatus.CONVERTED_TO_ORDER,
+          },
+        });
       } catch (error) {
         console.error("Error sending order confirmation email:", error);
-        // Continue with the order creation even if the email fails
+        // Do NOT update quote status if webhook fails - the error will be thrown
+        throw new Error(`Failed to send order confirmation email: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else {
+      // If no supplier email, still update quote status (no webhook to wait for)
+      await prisma.quoteRequest.update({
+        where: {
+          id: quoteRequestId,
+        },
+        data: {
+          status: QuoteStatus.CONVERTED_TO_ORDER,
+        },
+      });
     }
 
     // Update quote request with selected supplier and update thread statuses
@@ -624,11 +591,10 @@ export async function POST(
       );
     }
 
-    // Update quote request with selected supplier
+    // Update quote request with selected supplier (status already updated above)
     await prisma.quoteRequest.update({
       where: { id: quoteRequest.id },
       data: {
-        status: QuoteStatus.CONVERTED_TO_ORDER,
         selectedSupplierId: finalSupplierId,
       },
     });
@@ -660,14 +626,20 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({
+    const responseData = {
       data: {
         orderId: order.id,
         orderNumber: order.orderNumber,
         quoteRequestId: quoteRequest.id,
         fulfillmentMethod,
       },
-    });
+    };
+
+    console.log('=== CONVERT TO ORDER SUCCESS ===');
+    console.log('Returning response:', JSON.stringify(responseData, null, 2));
+    console.log('================================');
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error("Error converting quote request to order:", error);
     return NextResponse.json(

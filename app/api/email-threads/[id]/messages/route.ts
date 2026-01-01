@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const threadId = params.id;
+    const { id: threadId } = await params;
 
     // Fetch all messages for this thread, including attachments
     const messages = await prisma.emailMessage.findMany({

@@ -21,6 +21,7 @@ import { formatDate } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AppLayout } from "@/components/layout/app-layout"
 
 export default function EditQuoteRequestPage() {
   const router = useRouter()
@@ -255,24 +256,30 @@ export default function EditQuoteRequestPage() {
     quoteRequest.status !== QuoteStatus.REJECTED
   
   return (
-    <div className="container mx-auto py-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/orders/quote-request/${quoteRequestId}`}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Quote
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/parts?quoteRequestId=${quoteRequestId}`}>
-              <MessageSquare className="w-4 h-4 mr-1" />
-              Go to Parts Search
-            </Link>
-          </Button>
+    <AppLayout activeRoute="/orders">
+      <div className="flex items-center mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-4 text-slate-400 hover:text-white"
+          onClick={() => router.push(`/orders/quote-request/${quoteRequestId}`)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Edit Quote Request</h1>
+          <p className="text-slate-400">Edit the basic information for this quote request</p>
         </div>
-        
-        <h1 className="text-2xl font-bold">Edit Quote Request</h1>
+      </div>
+
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" size="sm" className="text-orange-600 hover:bg-slate-700 hover:text-white" asChild>
+          <Link href={`/parts?quoteRequestId=${quoteRequestId}`}>
+            <MessageSquare className="w-4 h-4 mr-1" />
+            Go to Parts Search
+          </Link>
+        </Button>
       </div>
       
       {loading ? (
@@ -331,38 +338,40 @@ export default function EditQuoteRequestPage() {
               </div>
             )}
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Quote Request Details</CardTitle>
-                <CardDescription>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="border-b border-slate-700">
+                <CardTitle className="text-white">Quote Request Details</CardTitle>
+                <CardDescription className="text-slate-400">
                   Edit the basic information for this quote request
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title" className="text-white">Title</Label>
                     <Input
                       id="title"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
                       required
+                      className="bg-slate-700 border-slate-600 text-white"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="expiryDate">Expiry Date</Label>
+                    <Label htmlFor="expiryDate" className="text-white">Expiry Date</Label>
                     <Input
                       id="expiryDate"
                       type="date"
                       value={expiryDate}
                       onChange={(e) => setExpiryDate(e.target.value)}
+                      className="bg-slate-700 border-slate-600 text-white"
                     />
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="supplier">Supplier *</Label>
+                  <Label htmlFor="supplier" className="text-white">Supplier *</Label>
                   <Select
                     value={supplierId}
                     onValueChange={(value) => setSupplierId(value)}
@@ -388,7 +397,7 @@ export default function EditQuoteRequestPage() {
                 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>Also Send to Additional Suppliers (Optional)</Label>
+                    <Label className="text-white">Also Send to Additional Suppliers (Optional)</Label>
                     <Button
                       type="button"
                       variant="outline"
@@ -461,7 +470,7 @@ export default function EditQuoteRequestPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="vehicle">Vehicle</Label>
+                  <Label htmlFor="vehicle" className="text-white">Vehicle</Label>
                   <Select
                     value={vehicleId || "none"}
                     onValueChange={(value) => setVehicleId(value === "none" ? undefined : value)}
@@ -481,29 +490,31 @@ export default function EditQuoteRequestPage() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="text-white">Description</Label>
                   <Textarea
                     id="description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={3}
+                    className="bg-slate-700 border-slate-600 text-white"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes" className="text-white">Notes</Label>
                   <Textarea
                     id="notes"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
                     placeholder="Additional notes for the supplier"
+                    className="bg-slate-700 border-slate-600 text-white"
                   />
                 </div>
                 
                 <div className="pt-2">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium">Items</h3>
+                    <h3 className="text-lg font-medium text-white">Items</h3>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button type="button" variant="outline" size="sm">
@@ -527,34 +538,34 @@ export default function EditQuoteRequestPage() {
                     </DropdownMenu>
                   </div>
                   
-                  <div className="border rounded-md">
+                  <div className="border border-slate-700 rounded-md">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Part Number</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead className="text-right">Quantity</TableHead>
-                          <TableHead className="text-right">Unit Price</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
+                        <TableRow className="border-slate-700">
+                          <TableHead className="text-slate-300">Part Number</TableHead>
+                          <TableHead className="text-slate-300">Description</TableHead>
+                          <TableHead className="text-right text-slate-300">Quantity</TableHead>
+                          <TableHead className="text-right text-slate-300">Unit Price</TableHead>
+                          <TableHead className="text-right text-slate-300">Total</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                          <TableRow className="border-slate-700">
+                            <TableCell colSpan={6} className="text-center py-4 text-slate-400">
                               No items added. Click "Add Item" to add a new item.
                             </TableCell>
                           </TableRow>
                         ) : (
                           items.map((item, index) => (
-                            <TableRow key={item.id || `new-${index}`}>
+                            <TableRow key={item.id || `new-${index}`} className="border-slate-700">
                               <TableCell>
                                 <Input
                                   value={item.partNumber || ""}
                                   onChange={(e) => handleItemChange(index, "partNumber", e.target.value)}
                                   placeholder="Part #"
-                                  className="w-full"
+                                  className="w-full bg-slate-700 border-slate-600 text-white"
                                 />
                               </TableCell>
                               <TableCell>
@@ -562,7 +573,7 @@ export default function EditQuoteRequestPage() {
                                   value={item.description || ""}
                                   onChange={(e) => handleItemChange(index, "description", e.target.value)}
                                   placeholder="Description"
-                                  className="w-full"
+                                  className="w-full bg-slate-700 border-slate-600 text-white"
                                 />
                               </TableCell>
                               <TableCell className="text-right">
@@ -571,7 +582,7 @@ export default function EditQuoteRequestPage() {
                                   min="1"
                                   value={item.quantity || ""}
                                   onChange={(e) => handleItemChange(index, "quantity", parseInt(e.target.value, 10))}
-                                  className="w-20 ml-auto"
+                                  className="w-20 ml-auto bg-slate-700 border-slate-600 text-white"
                                 />
                               </TableCell>
                               <TableCell className="text-right">
@@ -581,7 +592,7 @@ export default function EditQuoteRequestPage() {
                                   step="0.01"
                                   value={item.unitPrice || ""}
                                   onChange={(e) => handleItemChange(index, "unitPrice", parseFloat(e.target.value))}
-                                  className="w-24 ml-auto"
+                                  className="w-24 ml-auto bg-slate-700 border-slate-600 text-white"
                                   placeholder="0.00"
                                 />
                               </TableCell>
@@ -592,7 +603,7 @@ export default function EditQuoteRequestPage() {
                                   step="0.01"
                                   value={item.totalPrice || ""}
                                   onChange={(e) => handleItemChange(index, "totalPrice", parseFloat(e.target.value))}
-                                  className="w-24 ml-auto"
+                                  className="w-24 ml-auto bg-slate-700 border-slate-600 text-white"
                                   placeholder="0.00"
                                 />
                               </TableCell>
@@ -632,6 +643,6 @@ export default function EditQuoteRequestPage() {
           </div>
         </form>
       )}
-    </div>
+    </AppLayout>
   )
 }

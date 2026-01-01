@@ -635,7 +635,12 @@ export default function OrdersPage() {
                       return (
                         <TableRow key={order.id} className="border-slate-700">
                           <TableCell className="font-medium text-white">
-                            <span className="select-all cursor-text">{order.orderNumber}</span>
+                            <div className="flex items-center gap-2">
+                              <Package className="w-4 h-4 text-orange-500" />
+                              <Link href={`/orders/${order.id}`} className="text-white hover:text-orange-400 hover:underline">
+                                {order.orderNumber}
+                              </Link>
+                            </div>
                           </TableCell>
                           <TableCell className="text-slate-300">{order.orderDate}</TableCell>
                           <TableCell>

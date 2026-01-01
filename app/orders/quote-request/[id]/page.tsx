@@ -16,7 +16,7 @@ import {
   syncQuoteRequestThreads,
   updateThreadStatuses
 } from "@/lib/api/quote-requests"
-import { saveEditedEmail } from "@/lib/api/edited-emails"
+import { saveEditedEmail, getLatestEditedEmail, deleteEditedEmail } from "@/lib/api/edited-emails"
 import { QuoteStatus } from "@prisma/client"
 import {
   ArrowLeft,
@@ -36,6 +36,7 @@ import {
   Car,
   X,
   Trash2,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -45,12 +46,14 @@ import { Separator } from "@/components/ui/separator"
 import { toast } from "@/components/ui/use-toast"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { FollowUpAlert } from "@/components/ui/follow-up-alert"
+import { AppLayout } from "@/components/layout/app-layout"
 import { FollowUpModal } from "@/components/ui/follow-up-modal"
 import { FollowUpStatus } from "@/components/ui/follow-up-status"
 import { CommunicationTimeline } from "@/components/ui/communication-timeline"
 import { EmailPreviewModalWithEditor } from "@/components/ui/email-preview-modal"
 import { SupplierResponseTabs } from "@/components/quote-request/supplier-response-tabs"
 import { PriceComparisonTable } from "@/components/quote-request/price-comparison"
+import { AcceptQuoteConfirmationDialog } from "@/components/quote-request/accept-quote-confirmation-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,6 +90,16 @@ export default function ViewQuoteRequestPage() {
   const [editedEmailContent, setEditedEmailContent] = useState<any>(null)
   const [n8nResponse, setN8nResponse] = useState<any>(null)
   const [isLoadingN8nResponse, setIsLoadingN8nResponse] = useState(false)
+  const [showAcceptConfirmation, setShowAcceptConfirmation] = useState(false)
+  const [acceptConfirmationData, setAcceptConfirmationData] = useState<{
+    supplier: any;
+    quoteItems: any[];
+    quotedTotal: number;
+    otherSuppliersCount: number;
+    supplierId: string;
+    threadId: string;
+  } | null>(null)
+  const [isConvertingToOrder, setIsConvertingToOrder] = useState(false)
   const [lastGeneratedFollowUp, setLastGeneratedFollowUp] = useState<{
     messageId: string;
     reason: string;
@@ -207,19 +220,19 @@ export default function ViewQuoteRequestPage() {
   }
   
   // Handle sync email threads
-  const handleSyncThreads = async (isAutoSync = false) => {
+  const handleSyncThreads = async (isAutoSync = false, forceResync = false) => {
     try {
       setIsSyncing(true)
       if (isAutoSync) {
         setAutoSyncStatus("Syncing email threads...")
       }
-      
-      const response = await syncQuoteRequestThreads(quoteRequestId)
-      
+
+      const response = await syncQuoteRequestThreads(quoteRequestId, forceResync)
+
       if (response.data.summary.linked > 0 || response.data.summary.alreadyLinked > 0) {
         toast({
-          title: isAutoSync ? "Auto-Sync Complete" : "Email Threads Synced",
-          description: `Linked ${response.data.summary.linked} threads, ${response.data.summary.alreadyLinked} already linked.`,
+          title: isAutoSync ? "Auto-Sync Complete" : forceResync ? "Email Threads Re-synced" : "Email Threads Synced",
+          description: `Linked ${response.data.summary.linked} threads${forceResync ? ' (forced re-sync)' : ''}, ${response.data.summary.alreadyLinked} already linked.`,
         })
         
         // Refresh the quote request to show updated threads
@@ -621,8 +634,18 @@ export default function ViewQuoteRequestPage() {
       let emailType = "follow_up_no_response";
       let followUpReason = "No response received";
       let workflowBranch: "no_response" | "needs_revision" | "accept_quote" = "no_response";
-      
-      if (webhookResponse?.metadata?.followUpReason) {
+
+      if (editedEmailContent?.metadata?.followUpReason) {
+        followUpReason = editedEmailContent.metadata.followUpReason;
+        workflowBranch = editedEmailContent.metadata.workflowBranch || "no_response";
+        if (followUpReason.toLowerCase().includes('revision')) {
+          emailType = "follow_up_needs_revision";
+          workflowBranch = "needs_revision";
+        } else if (followUpReason.toLowerCase().includes('accept')) {
+          emailType = "follow_up_accept_quote";
+          workflowBranch = "accept_quote";
+        }
+      } else if (webhookResponse?.metadata?.followUpReason) {
         followUpReason = webhookResponse.metadata.followUpReason;
         if (followUpReason.toLowerCase().includes('revision')) {
           emailType = "follow_up_needs_revision";
@@ -691,29 +714,27 @@ export default function ViewQuoteRequestPage() {
         }
       }
       
-      if (emailToSend && emailToSend.actions && emailToSend.actions.approve) {
-        // Use the payload from the webhook response but don't include messageId
-        const { quoteRequestId, followUpReason, workflowBranch } = emailToSend.actions.approve.payload;
-        
+      if (emailToSend && emailToSend.email && emailToSend.metadata) {
+        // We have email content and metadata (either from webhook or from database)
         console.log("Sending follow-up email with payload:", {
-          quoteRequestId,
+          quoteRequestId: quoteRequest.id,
           followUpReason,
           workflowBranch
         });
-        
+
         // Create a simplified payload with only the required fields
         // No messageId as it will be generated by N8N
         const payload = {
           // Required fields for the webhook
           quoteRequestId: quoteRequest.id,
           action: "send",
-          
+
           // Include workflowBranch separately (needed by N8N)
           workflowBranch: workflowBranch,
-          
+
           // Store workflowBranch in the followUpReason field as well
           followUpReason: `${followUpReason} [${workflowBranch}]`,
-          
+
           // Include supplier information from webhook metadata (supplier-specific)
           supplier: emailToSend.metadata?.supplier ? {
             id: emailToSend.metadata.supplier.id,
@@ -726,10 +747,10 @@ export default function ViewQuoteRequestPage() {
             email: quoteRequest.supplier.email,
             auxiliaryEmails: quoteRequest.supplier.auxiliaryEmails || []
           },
-          
+
           // Pass supplierId to the API so backend can use the correct supplier
           supplierId: emailToSend.metadata?.supplier?.id,
-          
+
           // Include the email content
           emailContent: emailToSend.email ? {
             subject: emailToSend.email.subject,
@@ -737,14 +758,32 @@ export default function ViewQuoteRequestPage() {
             bodyHtml: emailToSend.email.bodyHtml
           } : undefined
         };
-        
+
         console.log("Modified payload for follow-up email:", payload);
-        
+
         // Send the follow-up email with edited content if available
         // Use a dummy messageId since it's required by the API but will be ignored
+        console.log("Sending email to webhook...");
         const response = await sendFollowUpEmail(quoteRequestId, "dummy-message-id", payload);
-        
-        console.log("Follow-up email sent successfully:", response);
+
+        console.log("Webhook triggered, waiting for email processing...");
+
+        // Wait for the quote request data to be refreshed (webhook completion)
+        console.log("Refreshing quote request data");
+        await handleFollowUpSent();
+        console.log("Quote request data refreshed successfully");
+
+        // Delete the saved edited email now that it's been sent
+        const supplierId = emailToSend.metadata?.supplier?.id;
+        if (supplierId) {
+          try {
+            await deleteEditedEmail(quoteRequest.id, emailType, supplierId);
+            console.log("Deleted saved edited email after successful send");
+          } catch (error) {
+            console.error("Error deleting edited email:", error);
+            // Don't fail the whole operation if delete fails
+          }
+        }
       } else if (previewEmailData) {
         // Fallback to the old implementation
         console.log("Using fallback implementation with previewEmailData:", {
@@ -753,20 +792,20 @@ export default function ViewQuoteRequestPage() {
           followUpReason: previewEmailData.followUpReason,
           workflowBranch: previewEmailData.workflowBranch
         });
-        
+
         // Create a simplified payload with only the required fields
         // No messageId as it will be generated by N8N
         const payload = {
           // Required fields for the webhook
           quoteRequestId: quoteRequest.id,
           action: "send",
-          
+
           // Include workflowBranch separately (needed by N8N)
           workflowBranch: previewEmailData.workflowBranch,
-          
+
           // Store workflowBranch in the followUpReason field as well
           followUpReason: `${previewEmailData.followUpReason} [${previewEmailData.workflowBranch}]`,
-          
+
           // Include supplier information
           supplier: {
             id: quoteRequest.supplier.id,
@@ -774,7 +813,7 @@ export default function ViewQuoteRequestPage() {
             email: quoteRequest.supplier.email,
             auxiliaryEmails: quoteRequest.supplier.auxiliaryEmails || []
           },
-          
+
           // Include the email content
           emailContent: emailToSend && emailToSend.email ? {
             subject: emailToSend.email.subject,
@@ -782,31 +821,33 @@ export default function ViewQuoteRequestPage() {
             bodyHtml: emailToSend.email.bodyHtml
           } : undefined
         };
-        
+
         console.log("Modified payload for follow-up email (fallback):", payload);
-        
+
         // Use a dummy messageId since it's required by the API but will be ignored
+        console.log("Sending email to webhook (fallback)...");
         const response = await sendFollowUpEmail(quoteRequest.id, "dummy-message-id", payload);
-        
-        console.log("Follow-up email sent successfully (fallback):", response);
+
+        console.log("Webhook triggered (fallback), waiting for email processing...");
+
+        // Wait for the quote request data to be refreshed (webhook completion)
+        console.log("Refreshing quote request data");
+        await handleFollowUpSent();
+        console.log("Quote request data refreshed successfully");
       } else {
         throw new Error("No email data available");
       }
-      
+
+      // Show success toast only after webhook completes
       toast({
         title: "Follow-up email sent",
         description: "The supplier has been notified."
       });
-      
-      console.log("Closing email preview and refreshing quote request data");
+
+      console.log("Closing email preview");
       setShowEmailPreview(false);
       setWebhookResponse(null);
       setEditedEmailContent(null);
-      
-      // Wait for the quote request data to be refreshed
-      console.log("Refreshing quote request data");
-      await handleFollowUpSent();
-      console.log("Quote request data refreshed successfully");
     } catch (error) {
       console.error("Error sending follow-up email:", error);
       toast({
@@ -839,53 +880,37 @@ export default function ViewQuoteRequestPage() {
     try {
       console.log("handleEditEmail called with:", editedEmail);
       setEditedEmailContent(editedEmail);
-      
+
+      // Extract email content from either editedEmail.email or editedEmail.message
+      const emailData = editedEmail.email || editedEmail.message;
+
       // Save the edited email to the database
-      if (quoteRequest && editedEmail.message) {
-        // Determine the email type based on the webhook response or preview data
-        let emailType = "follow_up_needs_revision"; // Default to needs_revision
-        let workflowBranch = "needs_revision";
-        
-        if (webhookResponse?.metadata?.followUpReason) {
-          if (webhookResponse.metadata.followUpReason.toLowerCase().includes('revision')) {
-            emailType = "follow_up_needs_revision";
-            workflowBranch = "needs_revision";
-          } else if (webhookResponse.metadata.followUpReason.toLowerCase().includes('accept')) {
-            emailType = "follow_up_accept_quote";
-            workflowBranch = "accept_quote";
-          } else if (webhookResponse.metadata.followUpReason.toLowerCase().includes('no response')) {
-            emailType = "follow_up_no_response";
-            workflowBranch = "no_response";
-          }
-        } else if (previewEmailData?.followUpReason) {
-          if (previewEmailData.followUpReason.toLowerCase().includes('revision')) {
-            emailType = "follow_up_needs_revision";
-            workflowBranch = "needs_revision";
-          } else if (previewEmailData.followUpReason.toLowerCase().includes('accept')) {
-            emailType = "follow_up_accept_quote";
-            workflowBranch = "accept_quote";
-          } else if (previewEmailData.followUpReason.toLowerCase().includes('no response')) {
-            emailType = "follow_up_no_response";
-            workflowBranch = "no_response";
-          }
-        }
-        
+      if (quoteRequest && emailData) {
+        // When saving edited emails, always use 'follow_up_needs_revision' as the email type
+        // This ensures that edits are always treated as revision requests
+        const emailType = "follow_up_needs_revision";
+        const workflowBranch = "needs_revision";
+
         console.log("Saving edited email to database with type:", emailType, "and workflowBranch:", workflowBranch);
-        
+
         // Extract the email content from the editedEmail object
         const emailContent = {
-          subject: editedEmail.message.subject,
-          body: editedEmail.message.body,
-          bodyHtml: editedEmail.message.bodyHtml
+          subject: emailData.subject,
+          body: emailData.body,
+          bodyHtml: emailData.bodyHtml
         };
-        
-        console.log("Email content to save:", emailContent);
-        
-        // Save the edited email to the database
+
+        // Get supplierId from metadata if available (for multi-supplier quotes)
+        const supplierId = webhookResponse?.metadata?.supplier?.id || editedEmail.metadata?.supplier?.id;
+
+        console.log("Email content to save:", emailContent, "for supplier:", supplierId);
+
+        // Save the edited email to the database with supplier ID
         const saveResponse = await saveEditedEmail(
           quoteRequest.id,
           emailType,
-          emailContent
+          emailContent,
+          supplierId
         );
         
         console.log("Saved edited email to database:", saveResponse);
@@ -917,7 +942,11 @@ export default function ViewQuoteRequestPage() {
           description: "Your edited email has been saved to the database.",
         });
       } else {
-        console.error("Cannot save edited email: quoteRequest or editedEmail.message is missing");
+        console.error("Cannot save edited email: quoteRequest or email data is missing", {
+          hasQuoteRequest: !!quoteRequest,
+          hasEmailData: !!emailData,
+          editedEmail
+        });
         toast({
           title: "Error",
           description: "Failed to save edited email: missing required data.",
@@ -977,61 +1006,183 @@ export default function ViewQuoteRequestPage() {
     }
   };
   
-  // Handle accept quote from specific supplier
+  // Handle accept quote from specific supplier - opens confirmation dialog
   const handleAcceptSupplierQuote = async (supplierId: string, threadId: string) => {
-    try {
-      // Update the quote request status to approved
-      await updateQuoteRequest(quoteRequestId, { 
-        status: QuoteStatus.APPROVED
-      });
-      
-      // Update the thread status to accepted
-      await fetch(`/api/quote-requests/${quoteRequestId}/link-email-thread`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailThreadId: threadId,
-          supplierId: supplierId,
-          status: 'ACCEPTED'
-        })
-      });
-      
-      toast({
-        title: "Quote Accepted",
-        description: "Quote from this supplier has been accepted.",
-      });
-      
-      // Refresh the quote request data
-      await handleFollowUpSent();
-    } catch (error) {
-      console.error("Error accepting quote:", error);
+    // Find supplier thread
+    const supplierThread = quoteRequest.emailThreads.find(
+      (t: any) => t.supplierId === supplierId
+    );
+
+    if (!supplierThread) {
       toast({
         title: "Error",
-        description: "Failed to accept quote. Please try again.",
+        description: "Supplier thread not found.",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Get supplier-specific items and calculate total
+    const supplierItems = quoteRequest.items.filter(
+      (item: any) => item.supplierId === supplierId
+    );
+    const quotedTotal = supplierItems.reduce(
+      (sum: number, item: any) => sum + (Number(item.totalPrice) || 0),
+      0
+    );
+
+    // Count other suppliers for warning
+    const otherSuppliersCount = quoteRequest.emailThreads.filter(
+      (t: any) => t.supplierId !== supplierId
+    ).length;
+
+    // Open confirmation dialog
+    setAcceptConfirmationData({
+      supplier: supplierThread.supplier,
+      quoteItems: supplierItems,
+      quotedTotal,
+      otherSuppliersCount,
+      supplierId,
+      threadId,
+    });
+    setShowAcceptConfirmation(true);
+  };
+
+  // Execute accept with auto-convert after confirmation
+  const handleConfirmAcceptQuote = async () => {
+    if (!acceptConfirmationData) return;
+
+    const { supplierId, threadId } = acceptConfirmationData;
+
+    try {
+      setIsConvertingToOrder(true);
+
+      // 1. Update quote status to APPROVED
+      await updateQuoteRequest(quoteRequestId, {
+        status: QuoteStatus.APPROVED,
+        selectedSupplierId: supplierId,
+      });
+
+      // 2. Update all thread statuses
+      await Promise.all(
+        quoteRequest.emailThreads.map(async (thread: any) => {
+          const newStatus = thread.supplierId === supplierId ? 'ACCEPTED' : 'NOT_SELECTED';
+
+          return fetch(`/api/quote-requests/${quoteRequestId}/link-email-thread`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              emailThreadId: thread.emailThreadId,
+              supplierId: thread.supplierId,
+              status: newStatus,
+            }),
+          });
+        })
+      );
+
+      // 3. AUTO-CONVERT to order
+      console.log('Converting quote to order with supplier:', supplierId);
+      const orderResponse = await convertQuoteRequestToOrder(quoteRequestId, {
+        selectedSupplierId: supplierId,
+      });
+
+      console.log('Order response:', orderResponse);
+
+      // Validate response
+      if (!orderResponse?.data?.orderId) {
+        throw new Error('Invalid order response: missing orderId');
+      }
+
+      // 4. Success feedback
+      setShowAcceptConfirmation(false);
+      toast({
+        title: "Quote Accepted & Order Created",
+        description: `Successfully created order ${orderResponse.data.orderNumber}`,
+      });
+
+      // 5. Redirect to new order
+      console.log('Redirecting to order:', orderResponse.data.orderId);
+      router.push(`/orders/${orderResponse.data.orderId}`);
+    } catch (error) {
+      console.error("Error accepting quote:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
+
+      // ROLLBACK on failure
+      try {
+        await updateQuoteRequest(quoteRequestId, {
+          status: QuoteStatus.UNDER_REVIEW,
+          selectedSupplierId: undefined,
+        });
+
+        await Promise.all(
+          quoteRequest.emailThreads.map(async (thread: any) => {
+            return fetch(`/api/quote-requests/${quoteRequestId}/link-email-thread`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                emailThreadId: thread.emailThreadId,
+                supplierId: thread.supplierId,
+                status: 'RESPONDED',
+              }),
+            });
+          })
+        );
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+
+      toast({
+        title: "Error Creating Order",
+        description: "Failed to accept quote and create order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConvertingToOrder(false);
     }
   };
-  
+
   // Handle reject quote from specific supplier
   const handleRejectSupplierQuote = async (supplierId: string, threadId: string) => {
     try {
-      // Update the thread status
+      // Update the thread status to REJECTED
       await fetch(`/api/quote-requests/${quoteRequestId}/link-email-thread`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           emailThreadId: threadId,
           supplierId: supplierId,
-          status: 'REJECTED'
-        })
+          status: 'REJECTED',
+        }),
       });
-      
-      toast({
-        title: "Quote Rejected",
-        description: "Quote from this supplier has been rejected.",
-      });
-      
+
+      // Check if ALL suppliers have been rejected
+      const allThreads = quoteRequest.emailThreads;
+      const rejectedCount = allThreads.filter(
+        (t: any) => t.status === 'REJECTED' || t.supplierId === supplierId
+      ).length;
+      const allRejected = rejectedCount === allThreads.length;
+
+      // Update overall quote status if all rejected
+      if (allRejected) {
+        await updateQuoteRequest(quoteRequestId, {
+          status: QuoteStatus.REJECTED,
+        });
+
+        toast({
+          title: "All Suppliers Declined",
+          description: "You can re-open this quote request to send to new suppliers or request revisions.",
+          variant: "default",
+        });
+      } else {
+        const supplierName = quoteRequest.emailThreads.find(
+          (t: any) => t.supplierId === supplierId
+        )?.supplier.name;
+        toast({
+          title: "Quote Rejected",
+          description: `Quote from ${supplierName} has been rejected.`,
+        });
+      }
+
       // Refresh the quote request data
       await handleFollowUpSent();
     } catch (error) {
@@ -1048,15 +1199,93 @@ export default function ViewQuoteRequestPage() {
   const handleRequestRevision = async (supplierId: string, threadId: string) => {
     console.log('[handleRequestRevision] Called with:', { supplierId, threadId });
     console.log('[handleRequestRevision] Available emailThreads:', quoteRequest.emailThreads);
-    
+
+    // Clear any previous webhook response or edited email content to avoid conflicts
+    setWebhookResponse(null);
+    setEditedEmailContent(null);
+
     try {
+      // First, check if there's an existing edited email for this supplier
+      console.log('[handleRequestRevision] Checking for existing edited email with params:', {
+        quoteRequestId: quoteRequest.id,
+        emailType: 'follow_up_needs_revision',
+        supplierId: supplierId
+      });
+
+      try {
+        const existingEmail = await getLatestEditedEmail(
+          quoteRequest.id,
+          'follow_up_needs_revision',
+          supplierId
+        );
+
+        console.log('[handleRequestRevision] API response:', existingEmail);
+
+        if (existingEmail?.data) {
+          console.log('[handleRequestRevision] Found existing edited email:', {
+            id: existingEmail.data.id,
+            subject: existingEmail.data.subject,
+            supplierId: existingEmail.data.supplierId,
+            createdAt: existingEmail.data.createdAt
+          });
+
+          // Find the supplier details from emailThreads
+          const junctionRecord = quoteRequest.emailThreads?.find((t: any) => t.supplierId === supplierId);
+          const supplierDetails = junctionRecord?.supplier;
+
+          console.log('[handleRequestRevision] Found supplier details:', supplierDetails);
+
+          // Display the existing edited email instead of opening the follow-up modal
+          setEditedEmailContent({
+            email: {
+              subject: existingEmail.data.subject,
+              body: existingEmail.data.body,
+              bodyHtml: existingEmail.data.bodyHtml
+            },
+            metadata: {
+              quoteRequestId: quoteRequest.id,
+              followUpReason: 'needs_revision',
+              workflowBranch: 'needs_revision',
+              date: existingEmail.data.createdAt,
+              supplier: supplierDetails ? {
+                id: supplierDetails.id,
+                name: supplierDetails.name,
+                email: supplierDetails.email,
+                contactPerson: supplierDetails.contactPerson,
+                auxiliaryEmails: supplierDetails.auxiliaryEmails || []
+              } : {
+                id: supplierId
+              }
+            }
+          });
+
+          setShowEmailPreview(true);
+
+          toast({
+            title: "Loaded saved email",
+            description: "Showing your previously edited revision request email.",
+          });
+
+          return;
+        } else {
+          console.log('[handleRequestRevision] existingEmail.data is null or undefined');
+        }
+      } catch (error: any) {
+        // If no edited email found, continue with normal flow
+        console.log('[handleRequestRevision] Error fetching existing edited email:', {
+          error: error.message,
+          status: error.status,
+          fullError: error
+        });
+      }
+
       // Find the supplier thread junction record by emailThreadId and supplierId
-      const junctionRecord = quoteRequest.emailThreads?.find((t: any) => 
+      const junctionRecord = quoteRequest.emailThreads?.find((t: any) =>
         t.emailThreadId === threadId && t.supplierId === supplierId
       );
-      
+
       console.log('[handleRequestRevision] Found junction record:', junctionRecord);
-      
+
       if (!junctionRecord) {
         console.error('[handleRequestRevision] No junction record found for:', { supplierId, threadId });
         toast({
@@ -1066,11 +1295,11 @@ export default function ViewQuoteRequestPage() {
         });
         return;
       }
-      
+
       // Check if we have messages
       const messages = junctionRecord.emailThread?.messages || [];
       console.log('[handleRequestRevision] Messages in thread:', messages);
-      
+
       if (messages.length > 0) {
         // Get the most recent outbound message
         const outboundMessages = messages
@@ -1080,9 +1309,9 @@ export default function ViewQuoteRequestPage() {
             const dateB = new Date(b.sentAt || b.createdAt);
             return dateB.getTime() - dateA.getTime();
           });
-        
+
         const messageId = outboundMessages.length > 0 ? outboundMessages[0].id : `dummy-${threadId}`;
-        
+
         console.log('[handleRequestRevision] Setting state:', {
           messageId,
           supplierId,
@@ -1090,7 +1319,7 @@ export default function ViewQuoteRequestPage() {
           junctionRecordId: junctionRecord.id,
           supplierName: junctionRecord.supplier?.name
         });
-        
+
         // Set both message ID and supplier ID for the follow-up modal
         setSelectedMessageId(messageId);
         setSelectedSupplierId(supplierId);
@@ -1121,26 +1350,49 @@ export default function ViewQuoteRequestPage() {
   };
   
   // Helper function to get status badge
+  // Handle re-opening a rejected quote
+  const handleReopenQuote = async () => {
+    try {
+      await updateQuoteRequest(quoteRequestId, {
+        status: QuoteStatus.SENT,
+      });
+
+      toast({
+        title: "Quote Re-opened",
+        description: "You can now send this quote to additional suppliers or request revisions.",
+      });
+
+      await handleFollowUpSent();
+    } catch (error) {
+      console.error("Error re-opening quote:", error);
+      toast({
+        title: "Error",
+        description: "Failed to re-open quote. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusBadge = (status: QuoteStatus) => {
     switch (status) {
       case QuoteStatus.DRAFT:
-        return <Badge className="bg-slate-600 text-white">Draft</Badge>
+        return <Badge className="bg-slate-600 text-white text-sm px-3 py-1">Draft</Badge>
       case QuoteStatus.SENT:
-        return <Badge className="bg-blue-600 text-white">Sent</Badge>
+        return <Badge className="bg-blue-600 text-white text-sm px-3 py-1">Sent</Badge>
       case QuoteStatus.RECEIVED:
-        return <Badge className="bg-purple-600 text-white">Received</Badge>
+        return <Badge className="bg-purple-600 text-white text-sm px-3 py-1">Received</Badge>
       case QuoteStatus.UNDER_REVIEW:
-        return <Badge className="bg-yellow-600 text-white">Under Review</Badge>
+        return <Badge className="bg-yellow-600 text-white text-sm px-3 py-1">Under Review</Badge>
       case QuoteStatus.APPROVED:
-        return <Badge className="bg-green-600 text-white">Approved</Badge>
+        return <Badge className="bg-green-600 text-white text-sm px-3 py-1">Approved</Badge>
       case QuoteStatus.REJECTED:
-        return <Badge className="bg-red-600 text-white">Rejected</Badge>
+        return <Badge className="bg-red-600 text-white text-sm px-3 py-1">Rejected</Badge>
       case QuoteStatus.EXPIRED:
-        return <Badge className="bg-orange-600 text-white">Expired</Badge>
+        return <Badge className="bg-orange-600 text-white text-sm px-3 py-1">Expired</Badge>
       case QuoteStatus.CONVERTED_TO_ORDER:
-        return <Badge className="bg-indigo-600 text-white">Converted to Order</Badge>
+        return <Badge className="bg-indigo-600 text-white text-sm px-3 py-1">Converted to Order</Badge>
       default:
-        return <Badge variant="secondary">{status}</Badge>
+        return <Badge variant="secondary" className="text-sm px-3 py-1">{status}</Badge>
     }
   }
   
@@ -1214,22 +1466,113 @@ export default function ViewQuoteRequestPage() {
   
   // Get the effective status for UI logic
   const effectiveStatus = quoteRequest ? getEffectiveStatus() : QuoteStatus.DRAFT;
-  
+
+  // Calculate the lowest supplier total and identify the best supplier
+  const getBestSupplierQuote = () => {
+    if (!quoteRequest) {
+      return null;
+    }
+
+    // If this is a multi-supplier quote
+    if (quoteRequest.emailThreads && quoteRequest.emailThreads.length > 0) {
+      const threads = quoteRequest.emailThreads;
+
+      // Calculate totals for EACH supplier independently from their own items
+      const supplierQuotes = threads.map((t: any) => {
+        // Get ONLY items for THIS SPECIFIC supplier with prices
+        const supplierItems = quoteRequest.items?.filter((item: any) =>
+          item.supplierId === t.supplierId &&
+          item.totalPrice != null &&
+          item.totalPrice > 0
+        ) || [];
+
+        // Calculate total ONLY from THIS supplier's priced items
+        const totalFromItems = supplierItems.reduce((sum: number, item: any) =>
+          sum + (Number(item.totalPrice) || 0), 0
+        );
+
+        console.log(`[getBestSupplierQuote] Supplier ${t.supplier?.name}:`, {
+          supplierId: t.supplierId,
+          itemCount: supplierItems.length,
+          total: totalFromItems,
+          items: supplierItems.map(i => ({ partNumber: i.partNumber, price: i.totalPrice }))
+        });
+
+        // Only include this supplier if they have at least one priced item
+        // Otherwise use quotedAmount from thread if available
+        const total = totalFromItems > 0 ? totalFromItems : (t.quotedAmount || 0);
+
+        return {
+          supplierId: t.supplierId,
+          supplierName: t.supplier?.name,
+          total,
+          pricedItemCount: supplierItems.length,
+          hasPrices: totalFromItems > 0
+        };
+      }).filter((q: any) => q.total > 0); // Only include suppliers with some pricing
+
+      console.log('[getBestSupplierQuote] All supplier quotes:', supplierQuotes);
+
+      if (supplierQuotes.length === 0) {
+        return null;
+      }
+
+      // Find the supplier with the lowest total among those with prices
+      const lowestQuote = Math.min(...supplierQuotes.map((q: any) => q.total));
+      const bestSupplier = supplierQuotes.find((q: any) => q.total === lowestQuote);
+
+      console.log('[getBestSupplierQuote] Best supplier:', bestSupplier);
+
+      return bestSupplier;
+    }
+
+    // Single supplier quote - use totalAmount or calculate from items
+    const allItems = quoteRequest.items?.filter((item: any) =>
+      item.totalPrice != null && item.totalPrice > 0
+    ) || [];
+
+    const totalFromItems = allItems.reduce((sum: number, item: any) =>
+      sum + (item.totalPrice || 0), 0
+    );
+
+    if (totalFromItems > 0) {
+      return {
+        supplierId: quoteRequest.supplier?.id,
+        supplierName: quoteRequest.supplier?.name,
+        total: totalFromItems,
+        pricedItemCount: allItems.length,
+        hasPrices: true
+      };
+    }
+
+    return null;
+  };
+
+  const bestSupplierQuote = quoteRequest ? getBestSupplierQuote() : null;
+
   return (
-    <div className="container mx-auto py-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/orders">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Orders
-            </Link>
-          </Button>
+    <AppLayout activeRoute="/orders">
+      <div className="flex items-center mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-4 text-slate-400 hover:text-white"
+          onClick={() => router.push("/orders")}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-white">
+            {loading ? "Loading Quote..." : `Quote Request ${quoteRequest?.quoteNumber}`}
+          </h1>
+          <p className="text-slate-400">View and manage quote request details</p>
         </div>
-        
-        {quoteRequest && effectiveStatus !== QuoteStatus.CONVERTED_TO_ORDER && (
-          <div className="flex gap-2">
-            {effectiveStatus === QuoteStatus.DRAFT && (
+      </div>
+
+      {quoteRequest && effectiveStatus !== QuoteStatus.CONVERTED_TO_ORDER && (
+        <div className="flex justify-end gap-2 mb-6">
+          {effectiveStatus === QuoteStatus.DRAFT && (
               <Button 
                 onClick={handleSendToSupplier}
                 disabled={isSendingEmail}
@@ -1240,14 +1583,14 @@ export default function ViewQuoteRequestPage() {
                 Send to Supplier(s)
               </Button>
             )}
-            <Button variant="outline" asChild>
+            <Button variant="outline" className="text-orange-600 hover:bg-slate-700 hover:text-white" asChild>
               <Link href={`/orders/quote-request/${quoteRequestId}/edit`}>
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Quote
               </Link>
             </Button>
             {(effectiveStatus === QuoteStatus.DRAFT || effectiveStatus === QuoteStatus.REJECTED || effectiveStatus === QuoteStatus.EXPIRED) && (
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => setShowDeleteDialog(true)}
                 className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white"
@@ -1256,17 +1599,17 @@ export default function ViewQuoteRequestPage() {
                 Delete
               </Button>
             )}
-            <Button 
+            <Button
               onClick={handleConvertToOrder}
               disabled={isConverting || quoteRequest.status !== QuoteStatus.APPROVED}
+              className="bg-orange-600 hover:bg-orange-700"
             >
               {isConverting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <ShoppingCart className="w-4 h-4 mr-2" />
               Convert to Order
             </Button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       
       {loading ? (
         <div className="flex justify-center items-center p-12">
@@ -1300,12 +1643,12 @@ export default function ViewQuoteRequestPage() {
           
           <div className="lg:col-span-2 space-y-6">
             {/* Main content column */}
-            <Card>
-              <CardHeader className="border-b">
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="border-b border-slate-700">
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-2xl">{quoteRequest.title}</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-2xl text-white">{quoteRequest.title}</CardTitle>
+                    <CardDescription className="text-slate-400">
                       Quote Request #{quoteRequest.quoteNumber}
                     </CardDescription>
                   </div>
@@ -1318,25 +1661,25 @@ export default function ViewQuoteRequestPage() {
                 <div className="space-y-6">
                   {quoteRequest.description && (
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
-                      <p className="break-words">{quoteRequest.description}</p>
+                      <h3 className="text-sm font-medium text-slate-400 mb-2">Description</h3>
+                      <p className="break-words text-white">{quoteRequest.description}</p>
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      <h3 className="text-sm font-medium text-slate-400 mb-2">
                         {additionalSuppliers.length > 0 ? 'Primary Supplier' : 'Supplier'}
                       </h3>
                       <div className="flex items-start gap-2">
-                        <Building className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                        <Building className="w-4 h-4 mt-0.5 text-slate-400" />
                         <div>
-                          <p className="font-medium">{quoteRequest.supplier.name}</p>
+                          <p className="font-medium text-white">{quoteRequest.supplier.name}</p>
                           {quoteRequest.supplier.email && (
-                            <p className="text-sm text-muted-foreground">{quoteRequest.supplier.email}</p>
+                            <p className="text-sm text-slate-400">{quoteRequest.supplier.email}</p>
                           )}
                           {quoteRequest.supplier.contactPerson && (
-                            <p className="text-sm text-muted-foreground">Contact: {quoteRequest.supplier.contactPerson}</p>
+                            <p className="text-sm text-slate-400">Contact: {quoteRequest.supplier.contactPerson}</p>
                           )}
                         </div>
                       </div>
@@ -1348,7 +1691,7 @@ export default function ViewQuoteRequestPage() {
                             <div key={supplier.id} className="flex items-start gap-2 pl-6 border-l-2 border-orange-200">
                               <Building className="w-4 h-4 mt-0.5 text-muted-foreground" />
                               <div>
-                                <p className="font-medium text-sm">{supplier.name}</p>
+                                <p className="text-white font-medium text-sm">{supplier.name}</p>
                                 {supplier.email && (
                                   <p className="text-xs text-muted-foreground">{supplier.email}</p>
                                 )}
@@ -1367,12 +1710,12 @@ export default function ViewQuoteRequestPage() {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
-                          <span>Requested: {formatDate(quoteRequest.requestDate)}</span>
+                          <span className="text-white">Requested: {formatDate(quoteRequest.requestDate)}</span>
                         </div>
                         {quoteRequest.expiryDate && (
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-muted-foreground" />
-                            <span>Expires: {formatDate(quoteRequest.expiryDate)}</span>
+                            <span className="text-white">Expires: {formatDate(quoteRequest.expiryDate)}</span>
                           </div>
                         )}
                       </div>
@@ -1421,22 +1764,23 @@ export default function ViewQuoteRequestPage() {
                 />
               </div>
             ) : quoteRequest.emailThread && quoteRequest.emailThread.length > 0 ? (
-              <Card className="mt-6">
+              <Card className="mt-6 bg-slate-800 border-slate-700">
                 <CardContent className="py-12 text-center">
                   <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-yellow-500 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">Email Threads Not Linked</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <h3 className="text-lg font-semibold mb-2 text-white">Email Threads Not Linked</h3>
+                  <p className="text-slate-400 mb-4">
                     Found {quoteRequest.emailThread.length} email thread(s) that need to be linked to suppliers
                   </p>
                   {autoSyncStatus && (
-                    <p className="text-sm text-blue-600 mb-4 flex items-center justify-center gap-2">
+                    <p className="text-sm text-blue-400 mb-4 flex items-center justify-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       {autoSyncStatus}
                     </p>
                   )}
                   <Button
-                    onClick={() => handleSyncThreads(false)}
+                    onClick={(e) => handleSyncThreads(false, e.shiftKey)}
                     disabled={isSyncing}
+                    title="Click to sync. Hold Shift to force re-sync (fixes incorrect thread mappings)"
                   >
                     {isSyncing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {autoSyncStatus ? "Sync Now (Skip Wait)" : "Sync Email Threads"}
@@ -1444,11 +1788,11 @@ export default function ViewQuoteRequestPage() {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="mt-6">
+              <Card className="mt-6 bg-slate-800 border-slate-700">
                 <CardContent className="py-12 text-center">
-                  <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">No Email Communication Yet</h3>
-                  <p className="text-muted-foreground mb-6">
+                  <Mail className="h-16 w-16 mx-auto mb-4 text-slate-400 opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Email Communication Yet</h3>
+                  <p className="text-slate-400 mb-6">
                     Send the quote request to suppliers to start tracking responses
                   </p>
                   {quoteRequest.status === 'DRAFT' && !isSendingEmail && (
@@ -1496,65 +1840,85 @@ export default function ViewQuoteRequestPage() {
           
           {/* Sidebar column */}
           <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Quote Summary</CardTitle>
+            <Card className="bg-slate-800 border-slate-700">
+              <CardHeader className="border-b border-slate-700">
+                <CardTitle className="text-lg text-white">Quote Summary</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status</span>
+                    <span className="text-slate-400">Status</span>
                     <span>{getStatusBadge(getEffectiveStatus())}</span>
                   </div>
-                  
+
                   {/* Show supplier response summary if multi-supplier */}
                   {quoteRequest.emailThreads && quoteRequest.emailThreads.length > 1 && (
-                    <div className="text-xs space-y-1 p-2 bg-muted/50 rounded">
-                      <div className="font-medium text-muted-foreground">Supplier Responses:</div>
+                    <div className="text-xs space-y-1 p-2 bg-slate-700/50 rounded">
+                      <div className="font-medium text-slate-300">Supplier Responses:</div>
                       {quoteRequest.emailThreads.map((thread: any) => (
                         <div key={thread.id} className="flex justify-between items-center">
-                          <span className="truncate max-w-[120px]">{thread.supplier.name}</span>
-                          <Badge 
-                            variant="outline" 
+                          <span className="truncate max-w-[120px] text-white">{thread.supplier.name}</span>
+                          <Badge
+                            variant="outline"
                             className={`text-xs ${
                               thread.status === 'RESPONDED' ? 'border-green-500 text-green-700' :
                               thread.status === 'ACCEPTED' ? 'border-green-600 text-green-800' :
                               thread.status === 'REJECTED' ? 'border-red-500 text-red-700' :
+                              thread.status === 'NOT_SELECTED' ? 'border-gray-400 text-gray-600' :
                               thread.status === 'NO_RESPONSE' ? 'border-gray-400 text-gray-600' :
                               'border-blue-500 text-blue-700'
                             }`}
                           >
-                            {thread.status.replace('_', ' ')}
+                            {thread.status.replace(/_/g, ' ')}
                           </Badge>
                         </div>
                       ))}
                     </div>
                   )}
-                  
+
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Items</span>
-                    <span>{quoteRequest.items.length}</span>
-                  </div>
-                  
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Amount</span>
-                    <span className="font-medium">
-                      {quoteRequest.totalAmount 
-                        ? formatCurrency(quoteRequest.totalAmount)
-                        : "Pending"}
+                    <span className="text-slate-400">Items</span>
+                    <span className="text-white">
+                      {(() => {
+                        // Count unique part numbers across all items
+                        const uniquePartNumbers = new Set(
+                          quoteRequest.items?.map((item: any) => item.partNumber) || []
+                        );
+                        return uniquePartNumbers.size;
+                      })()}
                     </span>
                   </div>
-                  
-                  <Separator />
-                  
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Created By</span>
-                    <span>{quoteRequest.createdBy?.name || "Unknown"}</span>
+
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Best Price</span>
+                      <span className="font-medium text-white">
+                        {bestSupplierQuote
+                          ? formatCurrency(bestSupplierQuote.total)
+                          : quoteRequest.totalAmount
+                            ? formatCurrency(quoteRequest.totalAmount)
+                            : "Pending"}
+                      </span>
+                    </div>
+                    {bestSupplierQuote && (
+                      <div className="flex justify-end">
+                        <Badge variant="outline" className="text-xs border-green-500 text-green-700">
+                          {bestSupplierQuote.supplierName}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
-                  
+
+                  <Separator className="bg-slate-700" />
+
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Created On</span>
-                    <span>{formatDate(quoteRequest.createdAt)}</span>
+                    <span className="text-slate-400">Created By</span>
+                    <span className="text-white">{quoteRequest.createdBy?.name || "Unknown"}</span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Created On</span>
+                    <span className="text-white">{formatDate(quoteRequest.createdAt)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -1570,10 +1934,10 @@ export default function ViewQuoteRequestPage() {
                     Convert to Order
                   </Button>
                 ) : effectiveStatus === QuoteStatus.DRAFT ? (
-                  <div className="text-center p-4 bg-slate-50 rounded-md">
-                    <FileText className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                    <p className="text-slate-800 font-medium">Draft Quote Request</p>
-                    <p className="text-slate-600 text-sm mt-1">
+                  <div className="text-center p-4 bg-slate-700 rounded-md">
+                    <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Draft Quote Request</p>
+                    <p className="text-slate-300 text-sm mt-1">
                       This quote request has not been sent to the supplier yet.
                     </p>
                     <Button
@@ -1604,10 +1968,10 @@ export default function ViewQuoteRequestPage() {
                     </Button>
                   </div>
                 ) : effectiveStatus === QuoteStatus.RECEIVED ? (
-                  <div className="text-center p-4 bg-indigo-50 rounded-md">
-                    <CheckCircle className="w-8 h-8 text-indigo-500 mx-auto mb-2" />
-                    <p className="text-indigo-800 font-medium">Receipt Acknowledged</p>
-                    <p className="text-indigo-600 text-sm mt-1">
+                  <div className="text-center p-4 bg-indigo-900/20 rounded-md border border-indigo-600">
+                    <CheckCircle className="w-8 h-8 text-indigo-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Receipt Acknowledged</p>
+                    <p className="text-slate-300 text-sm mt-1">
                       Supplier has acknowledged receipt of the quote request.
                     </p>
                     <Button
@@ -1632,132 +1996,60 @@ export default function ViewQuoteRequestPage() {
                     </Button>
                   </div>
                 ) : effectiveStatus === QuoteStatus.UNDER_REVIEW ? (
-                  // Show Accept Quote, Reject Quote, and Needs Revision buttons when there are inbound messages
-                  <div className="space-y-2">
-                    <p className="text-sm text-center font-medium text-blue-600 mb-2">
-                      Supplier has responded to your quote request
+                  <div className="text-center p-4 bg-blue-900/20 rounded-md border border-blue-600">
+                    <AlertTriangle className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Review Supplier Quotes</p>
+                    <p className="text-slate-300 text-sm mt-1">
+                      Use the supplier tabs below to compare quotes and take action.
                     </p>
-                    <Button
-                      className="w-full bg-green-600 hover:bg-green-700"
-                      onClick={() => {
-                        // First update status to APPROVED, then convert to order
-                        updateQuoteRequest(quoteRequestId, { status: QuoteStatus.APPROVED })
-                          .then(() => {
-                            toast({
-                              title: "Quote Approved",
-                              description: "Quote has been approved successfully.",
-                            });
-                            // Refresh the quote request data
-                            return handleFollowUpSent();
-                          })
-                          .then(() => handleConvertToOrder())
-                          .catch(error => {
-                            console.error("Error updating quote status:", error)
-                            toast({
-                              title: "Error",
-                              description: "Failed to accept quote. Please try again.",
-                              variant: "destructive",
-                            })
-                          })
-                      }}
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Accept Quote
-                    </Button>
-                    <Button
-                      className="w-full bg-red-600 hover:bg-red-700"
-                      onClick={() => {
-                        // Update status to REJECTED
-                        updateQuoteRequest(quoteRequestId, { status: QuoteStatus.REJECTED })
-                          .then(() => {
-                            toast({
-                              title: "Quote Rejected",
-                              description: "Quote has been rejected successfully.",
-                            });
-                            // Refresh the quote request data
-                            return handleFollowUpSent();
-                          })
-                          .catch(error => {
-                            console.error("Error updating quote status:", error)
-                            toast({
-                              title: "Error",
-                              description: "Failed to reject quote. Please try again.",
-                              variant: "destructive",
-                            })
-                          })
-                      }}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Reject Quote
-                    </Button>
-                    <Button
-                      className="w-full bg-amber-600 hover:bg-amber-700"
-                      onClick={() => {
-                        console.log("Needs Revision button clicked");
-                        console.log("Quote Request supplierId:", quoteRequest.supplierId);
-                        console.log("Quote Request supplier:", quoteRequest.supplier);
-                        // Get the most recent outbound message
-                        const messageId = getMostRecentOutboundMessageId();
-                        if (messageId) {
-                          console.log("Setting selectedMessageId and opening follow-up modal with needs_revision workflow branch");
-                          console.log("Setting selectedSupplierId to:", quoteRequest.supplierId);
-                          // Set the selected message ID and supplier ID (use primary supplier for main quote view)
-                          setSelectedMessageId(messageId);
-                          setSelectedSupplierId(quoteRequest.supplierId);
-                          // Open the follow-up modal with "needs_revision" workflow branch
-                          setFollowUpModalOpen(true);
-                        } else {
-                          toast({
-                            title: "Error",
-                            description: "No outbound message found to follow up on.",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                    >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Needs Revision
-                    </Button>
                   </div>
                 ) : effectiveStatus === QuoteStatus.SENT ? (
-                  <div className="text-center p-4 bg-blue-50 rounded-md">
-                    <Clock className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                    <p className="text-blue-800 font-medium">Waiting for Supplier Response</p>
-                    <p className="text-blue-600 text-sm mt-1">
+                  <div className="text-center p-4 bg-blue-900/20 rounded-md border border-blue-600">
+                    <Clock className="w-8 h-8 text-blue-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Waiting for Supplier Response</p>
+                    <p className="text-slate-300 text-sm mt-1">
                       Quote request has been sent to the supplier.
                     </p>
                   </div>
                 ) : effectiveStatus === QuoteStatus.CONVERTED_TO_ORDER ? (
-                  <div className="text-center p-4 bg-green-50 rounded-md">
-                    <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-green-800 font-medium">Converted to Order</p>
-                    <p className="text-green-600 text-sm mt-1">
+                  <div className="text-center p-4 bg-green-900/20 rounded-md border border-green-600">
+                    <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Converted to Order</p>
+                    <p className="text-slate-300 text-sm mt-1">
                       This quote has been converted to an order.
                     </p>
                   </div>
                 ) : effectiveStatus === QuoteStatus.REJECTED ? (
-                  <div className="text-center p-4 bg-red-50 rounded-md">
-                    <X className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                    <p className="text-red-800 font-medium">Quote Rejected</p>
-                    <p className="text-red-600 text-sm mt-1">
+                  <div className="text-center p-4 bg-red-900/20 rounded-md border border-red-600">
+                    <X className="w-8 h-8 text-red-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Quote Rejected</p>
+                    <p className="text-slate-300 text-sm mt-1">
                       This quote has been rejected.
                     </p>
+                    <Button
+                      className="w-full mt-4"
+                      variant="outline"
+                      onClick={handleReopenQuote}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Re-open Quote Request
+                    </Button>
                   </div>
                 ) : effectiveStatus === QuoteStatus.EXPIRED ? (
-                  <div className="text-center p-4 bg-orange-50 rounded-md">
-                    <Clock className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                    <p className="text-orange-800 font-medium">Quote Expired</p>
-                    <p className="text-orange-600 text-sm mt-1">
+                  <div className="text-center p-4 bg-orange-900/20 rounded-md border border-orange-600">
+                    <Clock className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                    <p className="text-white font-medium">Quote Expired</p>
+                    <p className="text-slate-300 text-sm mt-1">
                       This quote has expired. You may need to request a new quote.
                     </p>
                   </div>
                 ) : effectiveStatus === QuoteStatus.UNDER_REVIEW ? (
                   // Multi-supplier mode: show supplier comparison message
                   quoteRequest.emailThreads && quoteRequest.emailThreads.length > 1 ? (
-                    <div className="text-center p-4 bg-yellow-50 rounded-md">
-                      <AlertTriangle className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                      <p className="text-yellow-800 font-medium">Reviewing Supplier Quotes</p>
-                      <p className="text-yellow-600 text-sm mt-1">
+                    <div className="text-center p-4 bg-yellow-900/20 rounded-md border border-yellow-600">
+                      <AlertTriangle className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                      <p className="text-white font-medium">Reviewing Supplier Quotes</p>
+                      <p className="text-slate-300 text-sm mt-1">
                         Compare quotes in the tabs above and accept your preferred supplier.
                       </p>
                     </div>
@@ -2084,13 +2376,21 @@ export default function ViewQuoteRequestPage() {
       {/* Email Preview Modal - Opens when preview button is clicked */}
       <EmailPreviewModalWithEditor
         open={showEmailPreview}
-        onOpenChange={setShowEmailPreview}
+        onOpenChange={(open) => {
+          setShowEmailPreview(open);
+          // Clear state when modal is closed to prevent stale data
+          if (!open) {
+            setEditedEmailContent(null);
+            setWebhookResponse(null);
+          }
+        }}
         message={previewEmailData?.message || (previewMessageId ? findMessageById(previewMessageId) : null)}
         webhookResponse={editedEmailContent || webhookResponse}
         onApprove={handleApproveFollowUp}
         onRevise={handleReviseFollowUp}
         onEdit={handleEditEmail}
-        showApprovalButtons={webhookResponse || previewEmailData}
+        showApprovalButtons={!!(editedEmailContent || webhookResponse || previewEmailData)}
+        isSending={isPreviewLoading}
       />
       
       {/* Delete Confirmation Dialog */}
@@ -2121,6 +2421,18 @@ export default function ViewQuoteRequestPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+
+      {/* Accept Quote Confirmation Dialog */}
+      <AcceptQuoteConfirmationDialog
+        open={showAcceptConfirmation}
+        onOpenChange={setShowAcceptConfirmation}
+        supplier={acceptConfirmationData?.supplier || null}
+        quoteItems={acceptConfirmationData?.quoteItems || []}
+        quotedTotal={acceptConfirmationData?.quotedTotal || 0}
+        otherSuppliersCount={acceptConfirmationData?.otherSuppliersCount || 0}
+        isProcessing={isConvertingToOrder}
+        onConfirm={handleConfirmAcceptQuote}
+      />
+    </AppLayout>
   )
 }

@@ -150,6 +150,237 @@ export async function POST(request: NextRequest) {
             },
           },
         });
+
+        // Automatic Order Update Trigger
+        // If this is an INBOUND email from the supplier, automatically trigger order update webhook
+        if (emailData.from === order.supplier?.email) {
+          try {
+            console.log(`[Auto Order Update] Triggering for order ${order.orderNumber} from supplier email`);
+
+            // Dynamically import to avoid circular dependencies
+            const { postOrderWebhook } = await import('@/lib/api/n8n-client');
+
+            // Fetch full order context with all relationships
+            const fullOrder = await prisma.order.findUnique({
+              where: { id: order.id },
+              include: {
+                supplier: true,
+                orderItems: {
+                  include: {
+                    part: true,
+                  },
+                },
+                emailThread: {
+                  include: {
+                    messages: {
+                      orderBy: {
+                        receivedAt: 'desc',
+                      },
+                    },
+                  },
+                },
+                organization: true,
+                createdBy: true,
+              },
+            });
+
+            if (fullOrder && fullOrder.emailThread) {
+              // Filter messages to only include those AFTER order creation (post-conversion)
+              // Use sentAt or receivedAt (actual email timestamp), NOT createdAt (database insertion time)
+              // Use order.createdAt (DATETIME) instead of order.orderDate (DATE) for precise filtering
+              const orderCreationDate = new Date(fullOrder.createdAt);
+              const postConversionMessages = fullOrder.emailThread.messages.filter((message) => {
+                const messageDate = new Date(message.sentAt || message.receivedAt || message.createdAt);
+                return messageDate > orderCreationDate;
+              });
+
+              console.log(`[Auto Order Update] Filtered messages:`, {
+                totalMessages: fullOrder.emailThread.messages.length,
+                postConversionMessages: postConversionMessages.length,
+              });
+
+              // Prepare webhook payload with ALL updatable order fields
+              const webhookData = {
+                // Order identification
+                orderId: fullOrder.id,
+                orderNumber: fullOrder.orderNumber,
+                supplierId: fullOrder.supplierId,
+
+                // Order dates
+                orderDate: fullOrder.orderDate.toISOString(),
+
+                // Current order status and details
+                status: fullOrder.status,
+                totalAmount: Number(fullOrder.totalAmount),
+                subtotal: fullOrder.subtotal ? Number(fullOrder.subtotal) : null,
+                tax: fullOrder.tax ? Number(fullOrder.tax) : null,
+                shipping: fullOrder.shipping ? Number(fullOrder.shipping) : null,
+
+                // Fulfillment information
+                fulfillmentMethod: fullOrder.fulfillmentMethod || 'UNKNOWN',
+                partialFulfillment: fullOrder.partialFulfillment || false,
+
+                // Pickup details (if applicable)
+                pickupLocation: fullOrder.pickupLocation,
+                pickupDate: fullOrder.pickupDate?.toISOString() || null,
+                pickupInstructions: fullOrder.pickupInstructions,
+
+                // Current tracking information
+                currentTracking: {
+                  trackingNumber: fullOrder.trackingNumber,
+                  shippingCarrier: fullOrder.shippingCarrier,
+                  expectedDelivery: fullOrder.expectedDelivery?.toISOString() || null,
+                  actualDelivery: fullOrder.actualDelivery?.toISOString() || null,
+                },
+
+                // Supplier information
+                supplier: {
+                  id: fullOrder.supplier.id,
+                  name: fullOrder.supplier.name,
+                  email: fullOrder.supplier.email,
+                  contactPerson: fullOrder.supplier.contactPerson,
+                },
+
+                // Email thread - ONLY post-conversion messages, NO attachment content
+                emailThread: {
+                  id: fullOrder.emailThread.id,
+                  messages: postConversionMessages.map((message) => ({
+                    id: message.id,
+                    from: message.from,
+                    to: message.to,
+                    subject: message.subject,
+                    body: message.body,
+                    bodyHtml: message.bodyHtml,
+                    sentAt: message.sentAt?.toISOString() || message.createdAt.toISOString(),
+                    receivedAt: message.receivedAt?.toISOString() || null,
+                    direction: message.direction,
+                    hasAttachments: message.metadata?.attachments?.length > 0 || false,
+                  })),
+                },
+
+                // Order items with current tracking state
+                items: fullOrder.orderItems.map((item) => ({
+                  id: item.id,
+                  partNumber: item.part.partNumber,
+                  description: item.part.description,
+                  quantity: item.quantity,
+                  unitPrice: item.unitPrice ? Number(item.unitPrice) : null,
+                  totalPrice: item.totalPrice ? Number(item.totalPrice) : null,
+                  fulfillmentMethod: item.fulfillmentMethod,
+                  availability: item.availability,
+                  currentTracking: {
+                    trackingNumber: item.trackingNumber,
+                    expectedDelivery: item.expectedDelivery?.toISOString() || null,
+                    actualDelivery: item.actualDelivery?.toISOString() || null,
+                  },
+                  supplierNotes: item.supplierNotes,
+                })),
+
+                // Organization context
+                organization: {
+                  id: fullOrder.organization.id,
+                  name: fullOrder.organization.name,
+                },
+              };
+
+              // Call webhook (fire-and-forget with error handling)
+              const response = await postOrderWebhook(webhookData);
+
+              if (response.success) {
+                let updateCount = 0;
+
+                // Apply order-level updates if provided
+                if (response.orderUpdates) {
+                  const orderUpdateData: any = {};
+
+                  if (response.orderUpdates.trackingNumber) {
+                    orderUpdateData.trackingNumber = response.orderUpdates.trackingNumber;
+                    updateCount++;
+                  }
+
+                  if (response.orderUpdates.shippingCarrier) {
+                    orderUpdateData.shippingCarrier = response.orderUpdates.shippingCarrier;
+                    updateCount++;
+                  }
+
+                  if (response.orderUpdates.expectedDelivery) {
+                    orderUpdateData.expectedDelivery = new Date(response.orderUpdates.expectedDelivery);
+                    updateCount++;
+                  }
+
+                  if (response.orderUpdates.status) {
+                    orderUpdateData.status = response.orderUpdates.status;
+                    updateCount++;
+                  }
+
+                  // Apply updates if any
+                  if (Object.keys(orderUpdateData).length > 0) {
+                    await prisma.order.update({
+                      where: { id: fullOrder.id },
+                      data: orderUpdateData,
+                    });
+                  }
+                }
+
+                // Apply item-level updates if provided
+                if (response.itemUpdates && response.itemUpdates.length > 0) {
+                  const itemUpdatePromises = response.itemUpdates.map(async (itemUpdate) => {
+                    const updateData: any = {};
+
+                    if (itemUpdate.trackingNumber) {
+                      updateData.trackingNumber = itemUpdate.trackingNumber;
+                    }
+
+                    if (itemUpdate.expectedDelivery) {
+                      updateData.expectedDelivery = new Date(itemUpdate.expectedDelivery);
+                    }
+
+                    if (itemUpdate.availability) {
+                      updateData.availability = itemUpdate.availability;
+                    }
+
+                    if (Object.keys(updateData).length > 0) {
+                      updateCount++;
+                      return prisma.orderItem.update({
+                        where: { id: itemUpdate.id },
+                        data: updateData,
+                      });
+                    }
+                  });
+
+                  await Promise.all(itemUpdatePromises.filter(Boolean));
+                }
+
+                // Create activity log for automatic update
+                if (updateCount > 0) {
+                  await prisma.activityLog.create({
+                    data: {
+                      type: 'SYSTEM_UPDATE',
+                      title: 'Automatic order update',
+                      description: `Automatically applied ${updateCount} update(s) from supplier email`,
+                      entityType: 'Order',
+                      entityId: fullOrder.id,
+                      userId: session.user.id,
+                      organizationId: session.user.organizationId,
+                      metadata: {
+                        source: 'automatic_email_trigger',
+                        updateCount,
+                        orderNumber: fullOrder.orderNumber,
+                        emailMessageId: emailMessage.id,
+                      },
+                    },
+                  });
+
+                  console.log(`[Auto Order Update] Successfully applied ${updateCount} updates`);
+                }
+              }
+            }
+          } catch (error) {
+            // Log error but don't fail the email parse operation
+            console.error('[Auto Order Update] Error triggering order update:', error);
+            // Continue processing - this is non-fatal
+          }
+        }
       }
     }
 

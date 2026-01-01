@@ -284,7 +284,7 @@ export default function ConvertQuoteToOrderPage() {
                       <h3 className="text-lg font-medium text-white">Pickup Information</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="pickupLocation">Pickup Location</Label>
+                          <Label htmlFor="pickupLocation" className="text-white">Pickup Location</Label>
                           <Input
                             id="pickupLocation"
                             value={pickupLocation}
@@ -294,7 +294,7 @@ export default function ConvertQuoteToOrderPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="pickupDate">Pickup Date</Label>
+                          <Label htmlFor="pickupDate" className="text-white">Pickup Date</Label>
                           <Input
                             id="pickupDate"
                             type="date"
@@ -313,7 +313,7 @@ export default function ConvertQuoteToOrderPage() {
                       <h3 className="text-lg font-medium text-white">Shipping Information</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="street">Street Address</Label>
+                          <Label htmlFor="street" className="text-white">Street Address</Label>
                           <Input
                             id="street"
                             value={shippingAddress.street}
@@ -323,7 +323,7 @@ export default function ConvertQuoteToOrderPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="city">City</Label>
+                          <Label htmlFor="city" className="text-white">City</Label>
                           <Input
                             id="city"
                             value={shippingAddress.city}
@@ -333,7 +333,7 @@ export default function ConvertQuoteToOrderPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="state">State</Label>
+                          <Label htmlFor="state" className="text-white">State</Label>
                           <Input
                             id="state"
                             value={shippingAddress.state}
@@ -343,7 +343,7 @@ export default function ConvertQuoteToOrderPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="zipCode">Zip Code</Label>
+                          <Label htmlFor="zipCode" className="text-white">Zip Code</Label>
                           <Input
                             id="zipCode"
                             value={shippingAddress.zipCode}
@@ -353,7 +353,7 @@ export default function ConvertQuoteToOrderPage() {
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="country">Country</Label>
+                          <Label htmlFor="country" className="text-white">Country</Label>
                           <Input
                             id="country"
                             value={shippingAddress.country}
@@ -368,7 +368,7 @@ export default function ConvertQuoteToOrderPage() {
                   
                   {/* Special Instructions */}
                   <div className="space-y-2">
-                    <Label htmlFor="specialInstructions">Special Instructions</Label>
+                    <Label htmlFor="specialInstructions" className="text-white">Special Instructions</Label>
                     <Textarea
                       id="specialInstructions"
                       value={specialInstructions}

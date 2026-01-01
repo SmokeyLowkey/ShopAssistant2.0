@@ -1,18 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import Link from "next/link"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
+import { toast } from "@/components/ui/use-toast"
 
 // Login form schema
 const loginSchema = z.object({
@@ -27,7 +28,6 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get("callbackUrl") || "/"
-  const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   
   // Initialize form
@@ -43,12 +43,23 @@ export default function LoginPage() {
       rememberMe: true,
     },
   })
+
+  // Show toast for validation errors
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      const firstError = Object.values(errors)[0]
+      toast({
+        title: "Validation Error",
+        description: firstError?.message || "Please check your input and try again.",
+        variant: "destructive",
+      })
+    }
+  }, [errors])
   
   // Handle form submission
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true)
-    setError(null)
-    
+
     try {
       const result = await signIn("credentials", {
         redirect: false,
@@ -56,17 +67,66 @@ export default function LoginPage() {
         password: data.password,
         callbackUrl,
       })
-      
-      if (!result?.ok) {
-        setError("Invalid email or password")
+
+      console.log("SignIn result:", result)
+
+      // Check if authentication failed
+      if (result?.error) {
+        // Handle authentication failure
+        const errorMessage = result.error === "CredentialsSignin"
+          ? "Invalid email or password"
+          : result.error
+
+        toast({
+          title: "Sign In Failed",
+          description: errorMessage,
+          variant: "destructive",
+        })
+        setIsLoading(false)
         return
       }
-      
-      router.push(callbackUrl)
+
+      // Check if result exists and ok is explicitly false
+      if (result && result.ok === false) {
+        toast({
+          title: "Sign In Failed",
+          description: "Invalid email or password",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+        return
+      }
+
+      // If we got here, authentication was successful
+      if (result?.ok) {
+        // Show success toast
+        toast({
+          title: "Sign In Successful",
+          description: "Welcome back! Redirecting...",
+          variant: "default",
+        })
+
+        // Small delay to ensure success toast is visible before redirect
+        setTimeout(() => {
+          router.push(callbackUrl)
+        }, 500)
+      } else {
+        // Fallback error if result is undefined or unexpected
+        toast({
+          title: "Sign In Failed",
+          description: "An error occurred during sign in. Please try again.",
+          variant: "destructive",
+        })
+        setIsLoading(false)
+      }
+
     } catch (error) {
-      setError("An unexpected error occurred. Please try again.")
+      toast({
+        title: "Sign In Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
       console.error("Login error:", error)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -102,12 +162,6 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -144,13 +198,14 @@ export default function LoginPage() {
             </div>
             
             <div className="flex items-center space-x-2">
-              <Checkbox id="rememberMe" {...register("rememberMe")} />
+              <Checkbox id="rememberMe" {...register("rememberMe")} disabled={isLoading} />
               <Label htmlFor="rememberMe" className="text-sm font-normal">
                 Remember me
               </Label>
             </div>
             
             <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>

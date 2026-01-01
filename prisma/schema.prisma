@@ -270,6 +270,7 @@ model Supplier {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   auxiliaryEmails          AuxiliaryEmail[]
+  editedEmails             EditedEmail[]
   emailThreads             EmailThread[]
   orders                   Order[]
   parts                    PartSupplier[]
@@ -696,7 +697,6 @@ model QuoteRequest {
 model QuoteRequestItem {
   id                         String           @id @default(cuid())
   quoteRequestId             String
-  supplierId                 String?
   partId                     String?
   partNumber                 String
   description                String
@@ -717,6 +717,7 @@ model QuoteRequestItem {
   originalPartNumber         String?
   supersessionNotes          String?
   supplierNotes              String?
+  supplierId                 String?
   part                       Part?            @relation(fields: [partId], references: [id])
   quoteRequest               QuoteRequest     @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
   supplier                   Supplier?        @relation(fields: [supplierId], references: [id])
@@ -757,9 +758,13 @@ model EditedEmail {
   bodyHtml       String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  supplierId     String?
   quoteRequest   QuoteRequest @relation(fields: [quoteRequestId], references: [id], onDelete: Cascade)
+  supplier       Supplier?    @relation(fields: [supplierId], references: [id])
 
   @@index([quoteRequestId])
+  @@index([supplierId])
+  @@index([quoteRequestId, supplierId, emailType])
   @@map("edited_emails")
 }
 
@@ -1026,4 +1031,5 @@ enum QuoteThreadStatus {
   ACCEPTED
   REJECTED
   NO_RESPONSE
+  NOT_SELECTED
 }

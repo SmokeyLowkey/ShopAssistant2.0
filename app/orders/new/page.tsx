@@ -54,6 +54,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AppLayout } from "@/components/layout/app-layout"
 
 // Form schema
 const orderFormSchema = z.object({
@@ -422,43 +423,50 @@ export default function NewOrderPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/orders">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Orders
-            </Link>
-          </Button>
+    <AppLayout activeRoute="/orders">
+      <div className="flex items-center mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-4 text-slate-400 hover:text-white"
+          onClick={() => router.push("/orders")}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Request Quote</h1>
+          <p className="text-slate-400">Request a quote for parts and supplies</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Request Quote</CardTitle>
-              <CardDescription>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="border-b border-slate-700">
+              <CardTitle className="text-2xl text-white">Request Quote</CardTitle>
+              <CardDescription className="text-slate-400">
                 Request a quote for parts and supplies
               </CardDescription>
             </CardHeader>
             <CardContent>
               {submitSuccess ? (
-                <div className="bg-green-50 p-6 rounded-lg text-center">
-                  <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-green-800">Order Created Successfully</h3>
-                  <p className="text-green-600 mt-2">Redirecting to orders list...</p>
+                <div className="flex justify-center items-center p-12">
+                  <div className="flex flex-col items-center gap-2">
+                    <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-white">Order Created Successfully</h3>
+                    <p className="text-slate-400 mt-2">Redirecting to orders list...</p>
+                  </div>
                 </div>
               ) : (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                     {submitError && (
-                      <div className="bg-destructive/10 p-4 rounded-md flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                      <div className="bg-red-900/20 p-4 rounded-md flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
                         <div>
-                          <p className="text-destructive font-medium">Error</p>
-                          <p className="text-destructive/80 text-sm">{submitError}</p>
+                          <p className="text-red-500 font-medium">Error</p>
+                          <p className="text-red-400 text-sm">{submitError}</p>
                         </div>
                       </div>
                     )}
@@ -469,7 +477,7 @@ export default function NewOrderPage() {
                         name="supplierIds"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Suppliers*</FormLabel>
+                            <FormLabel className="text-white">Suppliers*</FormLabel>
                             <div className="flex gap-2">
                               <Dialog open={showSupplierSelector} onOpenChange={setShowSupplierSelector}>
                                 <DialogTrigger asChild>
@@ -563,12 +571,12 @@ export default function NewOrderPage() {
                           name="status"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Status</FormLabel>
+                              <FormLabel className="text-white">Status</FormLabel>
                               <FormControl>
                                 <Input
                                   value="Pending Quote"
                                   disabled
-                                  className="bg-slate-100"
+                                  className="bg-slate-700 border-slate-600 text-slate-400"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -581,7 +589,7 @@ export default function NewOrderPage() {
                           name="priority"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Priority</FormLabel>
+                              <FormLabel className="text-white">Priority</FormLabel>
                               <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
@@ -609,12 +617,12 @@ export default function NewOrderPage() {
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Notes</FormLabel>
+                            <FormLabel className="text-white">Notes</FormLabel>
                             <FormControl>
-                              <Textarea 
-                                placeholder="Additional information for the supplier" 
-                                className="min-h-[100px]" 
-                                {...field} 
+                              <Textarea
+                                placeholder="Additional information for the supplier"
+                                className="min-h-[100px] bg-slate-700 border-slate-600 text-white"
+                                {...field}
                               />
                             </FormControl>
                             <FormMessage />
@@ -643,9 +651,9 @@ export default function NewOrderPage() {
         </div>
 
         <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-md font-medium">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-slate-700">
+              <CardTitle className="text-md font-medium text-white">
                 Pick List
                 {pickListId && (
                   <Badge variant="outline" className="ml-2">
@@ -653,11 +661,12 @@ export default function NewOrderPage() {
                   </Badge>
                 )}
               </CardTitle>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={clearPickList}
                 disabled={pickList.length === 0}
+                className="text-slate-400 hover:text-white"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -665,13 +674,13 @@ export default function NewOrderPage() {
             <CardContent>
               {loadingPickList ? (
                 <div className="flex justify-center py-8">
-                  <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent"></div>
+                  <div className="animate-spin h-6 w-6 border-2 border-orange-600 rounded-full border-t-transparent"></div>
                 </div>
               ) : pickList.length === 0 ? (
                 <div className="text-center py-8">
-                  <ShoppingCart className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">Your pick list is empty</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <ShoppingCart className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-400">Your pick list is empty</p>
+                  <p className="text-xs text-slate-500 mt-1">
                     Add items from the parts page
                   </p>
                 </div>
@@ -680,53 +689,53 @@ export default function NewOrderPage() {
                   <div className="max-h-[400px] overflow-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Part</TableHead>
-                          <TableHead className="text-right">Qty</TableHead>
-                          <TableHead className="text-right">Price</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
+                        <TableRow className="border-slate-700">
+                          <TableHead className="text-slate-300">Part</TableHead>
+                          <TableHead className="text-right text-slate-300">Qty</TableHead>
+                          <TableHead className="text-right text-slate-300">Price</TableHead>
+                          <TableHead className="text-right text-slate-300">Total</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {pickList.map((item) => (
-                          <TableRow key={item.id}>
+                          <TableRow key={item.id} className="border-slate-700">
                             <TableCell>
-                              <div className="font-medium">{item.partNumber}</div>
-                              <div className="text-xs text-muted-foreground">{item.description}</div>
+                              <div className="font-medium text-white">{item.partNumber}</div>
+                              <div className="text-xs text-slate-400">{item.description}</div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0"
+                                  className="h-6 w-6 p-0 text-slate-400 hover:text-white"
                                   onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                 >
                                   -
                                 </Button>
-                                <span className="w-8 text-center">{item.quantity}</span>
+                                <span className="w-8 text-center text-white">{item.quantity}</span>
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0"
+                                  className="h-6 w-6 p-0 text-slate-400 hover:text-white"
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                 >
                                   +
                                 </Button>
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right text-white">
                               ${(item.price || item.estimatedPrice || 0).toFixed(2)}
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right text-white">
                               ${((item.price || item.estimatedPrice || 0) * item.quantity).toFixed(2)}
                             </TableCell>
                             <TableCell>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 w-6 p-0"
+                                className="h-6 w-6 p-0 text-slate-400 hover:text-white"
                                 onClick={() => removeFromPickList(item.id)}
                               >
                                 <X className="h-4 w-4" />
@@ -738,25 +747,25 @@ export default function NewOrderPage() {
                     </Table>
                   </div>
 
-                  <Separator />
+                  <Separator className="bg-slate-700" />
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-sm">Subtotal</span>
-                      <span>${orderTotals.subtotal.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400">Subtotal</span>
+                      <span className="text-white">${orderTotals.subtotal.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">Tax</span>
-                      <span>${orderTotals.tax.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400">Tax</span>
+                      <span className="text-white">${orderTotals.tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm">Shipping</span>
-                      <span>${orderTotals.shipping.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400">Shipping</span>
+                      <span className="text-white">${orderTotals.shipping.toFixed(2)}</span>
                     </div>
-                    <Separator />
+                    <Separator className="bg-slate-700" />
                     <div className="flex justify-between font-medium">
-                      <span>Total</span>
-                      <span>${orderTotals.total.toFixed(2)}</span>
+                      <span className="text-white">Total</span>
+                      <span className="text-orange-600">${orderTotals.total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -765,6 +774,6 @@ export default function NewOrderPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

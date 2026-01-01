@@ -109,19 +109,66 @@ export async function POST(
     }
 
     // Get all email messages from the thread (both inbound and outbound)
-    // emailThreads is now an array of junction table records, get messages from all threads
-    const allMessages = quoteRequest.emailThreads?.flatMap(junctionRecord => 
-      junctionRecord.emailThread?.messages || []
-    ) || [];
+    // If supplierId is provided, only get messages from that supplier's thread
+    const allMessages = supplierId
+      ? quoteRequest.emailThreads
+          ?.filter(junctionRecord => junctionRecord.supplierId === supplierId)
+          .flatMap(junctionRecord => junctionRecord.emailThread?.messages || []) || []
+      : quoteRequest.emailThreads
+          ?.flatMap(junctionRecord => junctionRecord.emailThread?.messages || []) || [];
 
     // Prepare data for the webhook
     // IMPORTANT: Do NOT send current prices - n8n should extract prices from supplier's email
     // Sending current prices causes compounding discounts on each refresh
+
+    // Filter items to only include those for the specified supplier (if provided)
+    let itemsToUpdate = supplierId
+      ? quoteRequest.items.filter((item: any) => item.supplierId === supplierId)
+      : quoteRequest.items;
+
+    // If no supplier-specific items found but supplierId is provided, create them
+    if (supplierId && itemsToUpdate.length === 0) {
+      console.log(`[Price Update API] No supplier-specific items found for supplier ${supplierId}, creating them...`);
+
+      // Get items without supplier ID (original items)
+      const originalItems = quoteRequest.items.filter((item: any) => !item.supplierId);
+
+      if (originalItems.length > 0) {
+        // Create supplier-specific items
+        itemsToUpdate = await Promise.all(
+          originalItems.map(async (item: any) => {
+            return await prisma.quoteRequestItem.create({
+              data: {
+                quoteRequestId: quoteRequest.id,
+                supplierId: supplierId,
+                partNumber: item.partNumber,
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                supplierPartNumber: item.supplierPartNumber,
+                leadTime: item.leadTime,
+                isAlternative: item.isAlternative,
+                notes: item.notes,
+                availability: item.availability,
+                estimatedDeliveryDays: item.estimatedDeliveryDays,
+                suggestedFulfillmentMethod: item.suggestedFulfillmentMethod,
+              },
+            });
+          })
+        );
+
+        console.log(`[Price Update API] Created ${itemsToUpdate.length} supplier-specific items`);
+      }
+    }
+
+    console.log(`[Price Update API] Using ${itemsToUpdate.length} items for ${supplierId ? `supplier ${supplierId}` : 'all suppliers'}`);
+
     const priceUpdateData = {
       quoteRequestId,
       supplierId: supplierId, // Include supplier ID for targeted price updates
-      items: quoteRequest.items.map((item: any) => ({
-        id: item.id,
+      items: itemsToUpdate.map((item: any) => ({
+        id: item.id, // This is now the supplier-specific item ID
         partNumber: item.partNumber,
         description: item.description,
         quantity: item.quantity,
@@ -162,7 +209,19 @@ export async function POST(
 
     console.log("Price update response:", response);
 
-    if (!response.success) {
+    // Handle new response format with operations.update
+    let updatedItems = response.updatedItems || [];
+
+    // Check if response has operations.update structure (new format)
+    if (!updatedItems.length && (response as any).operations?.update) {
+      console.log("Using new response format with operations.update");
+      updatedItems = (response as any).operations.update;
+    }
+
+    // Check success flag - if not present, check validation.hasErrors
+    const hasErrors = (response as any).validation?.hasErrors ?? !response.success;
+
+    if (hasErrors && response.success === false) {
       return NextResponse.json(
         { error: response.message || "Failed to update prices" },
         { status: 500 }
@@ -170,7 +229,7 @@ export async function POST(
     }
 
     // Check if we have structured pricing data or just a text output
-    if (!response.updatedItems || response.updatedItems.length === 0) {
+    if (!updatedItems || updatedItems.length === 0) {
       console.log("No structured pricing data returned, n8n processed with text output");
       
       // Fetch the full quote request with all relationships for the response
@@ -222,7 +281,7 @@ export async function POST(
     };
 
     // Update the items in the database with the new prices and availability
-    const updatePromises = response.updatedItems.map(async (updatedItem) => {
+    const updatePromises = updatedItems.map(async (updatedItem) => {
       return prisma.quoteRequestItem.update({
         where: { id: updatedItem.id },
         data: {
@@ -306,23 +365,37 @@ export async function POST(
             serialNumber: true,
           },
         },
-        emailThread: {
+        // Include multi-supplier email threads (junction table) with their email threads and messages
+        emailThreads: {
           include: {
-            messages: {
+            supplier: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                contactPerson: true,
+                rating: true,
+              },
+            },
+            emailThread: {
               include: {
-                attachments: {
-                  select: {
-                    id: true,
-                    filename: true,
-                    contentType: true,
-                    size: true,
-                    path: true,
-                    extractedText: true,
+                messages: {
+                  include: {
+                    attachments: {
+                      select: {
+                        id: true,
+                        filename: true,
+                        contentType: true,
+                        size: true,
+                        path: true,
+                        extractedText: true,
+                      },
+                    },
+                  },
+                  orderBy: {
+                    createdAt: "desc",
                   },
                 },
-              },
-              orderBy: {
-                createdAt: "desc",
               },
             },
           },

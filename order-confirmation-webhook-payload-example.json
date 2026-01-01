@@ -1,0 +1,215 @@
+{
+  "orderId": "cm5abc123def456ghi789",
+  "orderNumber": "ORD-2025-0001",
+  "quoteRequestId": "cm5xyz789def123abc456",
+  "quoteNumber": "QR-2025-0042",
+  "expectedResponseBy": "2025-12-31T18:00:00.000Z",
+  "fulfillmentMethod": "SPLIT",
+  "partialFulfillment": true,
+
+  "supplier": {
+    "id": "cm5sup123xyz456abc789",
+    "name": "Heavy Equipment Parts & Supply Co.",
+    "email": "orders@heavyequipmentparts.com",
+    "type": "DISTRIBUTOR",
+    "contactPerson": "John Smith",
+    "phone": "+1-555-0123",
+    "address": {
+      "street": "1234 Industrial Blvd",
+      "city": "Portland",
+      "state": "OR",
+      "zipCode": "97201",
+      "country": "USA"
+    }
+  },
+
+  "organization": {
+    "id": "cm5org456def789ghi012",
+    "name": "ABC Construction Company",
+    "contactInfo": "billing@abcconstruction.com",
+    "billingAddress": {
+      "street": "789 Main Street",
+      "city": "Seattle",
+      "state": "WA",
+      "zipCode": "98101",
+      "country": "USA"
+    }
+  },
+
+  "user": {
+    "id": "cm5usr789abc123def456",
+    "name": "Jane Doe",
+    "email": "jane.doe@abcconstruction.com",
+    "role": "MANAGER",
+    "phone": "+1-555-0199"
+  },
+
+  "vehicle": {
+    "id": "cm5veh123xyz789abc456",
+    "vehicleId": "EXC-2018-001",
+    "make": "Caterpillar",
+    "model": "320 Excavator",
+    "year": 2018,
+    "serialNumber": "CAT0320EL12345678",
+    "type": "EXCAVATOR"
+  },
+
+  "emailThread": {
+    "id": "cm5thr456def123ghi789",
+    "subject": "Re: Quote Request QR-2025-0042 - Hydraulic Parts",
+    "status": "RESPONDED",
+    "messages": [
+      {
+        "id": "cm5msg001abc123xyz456",
+        "direction": "OUTBOUND",
+        "subject": "Quote Request QR-2025-0042 - Hydraulic Parts",
+        "fromEmail": "jane.doe@abcconstruction.com",
+        "toEmail": "orders@heavyequipmentparts.com",
+        "cc": ["purchasing@abcconstruction.com"],
+        "bcc": [],
+        "body": "Hello,\n\nWe need the following hydraulic parts for our CAT 320 Excavator:\n- Hydraulic pump assembly\n- Control valve\n- Hydraulic cylinder seals\n\nPlease provide pricing and availability.\n\nBest regards,\nJane Doe",
+        "htmlBody": "<p>Hello,</p><p>We need the following hydraulic parts for our CAT 320 Excavator:</p><ul><li>Hydraulic pump assembly</li><li>Control valve</li><li>Hydraulic cylinder seals</li></ul><p>Please provide pricing and availability.</p><p>Best regards,<br>Jane Doe</p>",
+        "sentAt": "2025-12-28T10:30:00.000Z",
+        "externalMessageId": "msg-outbound-001@abcconstruction.com",
+        "attachments": []
+      },
+      {
+        "id": "cm5msg002def456abc789",
+        "direction": "INBOUND",
+        "subject": "Re: Quote Request QR-2025-0042 - Hydraulic Parts",
+        "fromEmail": "orders@heavyequipmentparts.com",
+        "toEmail": "jane.doe@abcconstruction.com",
+        "cc": [],
+        "bcc": [],
+        "body": "Hi Jane,\n\nThank you for your inquiry. Here's our quote:\n\n1. Hydraulic Pump Assembly (CAT-123-4567) - $2,850.00\n   - In stock, ships same day\n   \n2. Control Valve (CAT-234-5678) - $1,450.00\n   - Available for pickup at Portland location\n   \n3. Hydraulic Cylinder Seal Kit (CAT-345-6789) - $125.00\n   - In stock, can deliver next day\n\nTotal: $4,425.00\n\nAll prices include standard warranty. Let us know if you'd like to proceed.\n\nBest regards,\nJohn Smith\nHeavy Equipment Parts & Supply",
+        "htmlBody": "<p>Hi Jane,</p><p>Thank you for your inquiry. Here's our quote:</p><ol><li><strong>Hydraulic Pump Assembly (CAT-123-4567)</strong> - $2,850.00<br>In stock, ships same day</li><li><strong>Control Valve (CAT-234-5678)</strong> - $1,450.00<br>Available for pickup at Portland location</li><li><strong>Hydraulic Cylinder Seal Kit (CAT-345-6789)</strong> - $125.00<br>In stock, can deliver next day</li></ol><p><strong>Total: $4,425.00</strong></p><p>All prices include standard warranty. Let us know if you'd like to proceed.</p><p>Best regards,<br>John Smith<br>Heavy Equipment Parts & Supply</p>",
+        "sentAt": "2025-12-28T14:15:00.000Z",
+        "receivedAt": "2025-12-28T14:15:30.000Z",
+        "externalMessageId": "msg-inbound-001@heavyequipmentparts.com",
+        "inReplyTo": "msg-outbound-001@abcconstruction.com",
+        "attachments": [
+          {
+            "id": "cm5att001xyz123abc456",
+            "filename": "quote-QR-2025-0042.pdf",
+            "s3Key": "attachments/cm5msg002def456abc789/quote-QR-2025-0042.pdf",
+            "extractedText": "QUOTE #QR-2025-0042\nDate: Dec 28, 2025\n\nItem 1: Hydraulic Pump Assembly\nPart #: CAT-123-4567\nPrice: $2,850.00\nAvailability: In Stock\n\nItem 2: Control Valve\nPart #: CAT-234-5678\nPrice: $1,450.00\nAvailability: In Stock - Pickup Only\n\nItem 3: Seal Kit\nPart #: CAT-345-6789\nPrice: $125.00\nAvailability: In Stock\n\nTotal: $4,425.00"
+          }
+        ]
+      }
+    ]
+  },
+
+  "mostRecentQuote": {
+    "id": "cm5msg002def456abc789",
+    "subject": "Re: Quote Request QR-2025-0042 - Hydraulic Parts",
+    "body": "Hi Jane,\n\nThank you for your inquiry. Here's our quote:\n\n1. Hydraulic Pump Assembly (CAT-123-4567) - $2,850.00\n   - In stock, ships same day\n   \n2. Control Valve (CAT-234-5678) - $1,450.00\n   - Available for pickup at Portland location\n   \n3. Hydraulic Cylinder Seal Kit (CAT-345-6789) - $125.00\n   - In stock, can deliver next day\n\nTotal: $4,425.00\n\nAll prices include standard warranty. Let us know if you'd like to proceed.\n\nBest regards,\nJohn Smith\nHeavy Equipment Parts & Supply",
+    "htmlBody": "<p>Hi Jane,</p><p>Thank you for your inquiry. Here's our quote:</p><ol><li><strong>Hydraulic Pump Assembly (CAT-123-4567)</strong> - $2,850.00<br>In stock, ships same day</li><li><strong>Control Valve (CAT-234-5678)</strong> - $1,450.00<br>Available for pickup at Portland location</li><li><strong>Hydraulic Cylinder Seal Kit (CAT-345-6789)</strong> - $125.00<br>In stock, can deliver next day</li></ol><p><strong>Total: $4,425.00</strong></p><p>All prices include standard warranty. Let us know if you'd like to proceed.</p><p>Best regards,<br>John Smith<br>Heavy Equipment Parts & Supply</p>",
+    "sentAt": "2025-12-28T14:15:00.000Z",
+    "attachments": [
+      {
+        "filename": "quote-QR-2025-0042.pdf",
+        "extractedText": "QUOTE #QR-2025-0042\nDate: Dec 28, 2025\n\nItem 1: Hydraulic Pump Assembly\nPart #: CAT-123-4567\nPrice: $2,850.00\nAvailability: In Stock\n\nItem 2: Control Valve\nPart #: CAT-234-5678\nPrice: $1,450.00\nAvailability: In Stock - Pickup Only\n\nItem 3: Seal Kit\nPart #: CAT-345-6789\nPrice: $125.00\nAvailability: In Stock\n\nTotal: $4,425.00"
+      }
+    ]
+  },
+
+  "items": [
+    {
+      "id": "cm5itm001abc123xyz456",
+      "partId": "cm5prt789def456ghi123",
+      "partNumber": "CAT-123-4567",
+      "description": "Hydraulic Pump Assembly for CAT 320 Excavator",
+      "quantity": 1,
+      "unitPrice": 2850.00,
+      "totalPrice": 2850.00,
+      "availability": "IN_STOCK",
+      "fulfillmentMethod": "DELIVERY",
+      "estimatedDeliveryDays": 1,
+      "leadTime": 0,
+      "supplierPartNumber": "HEP-CAT-123-4567",
+      "category": "Hydraulic Systems",
+      "weight": 45.5,
+      "dimensions": {
+        "length": 24.0,
+        "width": 18.0,
+        "height": 12.0,
+        "unit": "inches"
+      }
+    },
+    {
+      "id": "cm5itm002def456abc789",
+      "partId": "cm5prt456ghi789abc123",
+      "partNumber": "CAT-234-5678",
+      "description": "Hydraulic Control Valve for CAT 320",
+      "quantity": 1,
+      "unitPrice": 1450.00,
+      "totalPrice": 1450.00,
+      "availability": "IN_STOCK",
+      "fulfillmentMethod": "PICKUP",
+      "estimatedDeliveryDays": 0,
+      "leadTime": 0,
+      "supplierPartNumber": "HEP-CAT-234-5678",
+      "category": "Hydraulic Systems",
+      "weight": 28.3,
+      "dimensions": {
+        "length": 16.0,
+        "width": 10.0,
+        "height": 8.0,
+        "unit": "inches"
+      }
+    },
+    {
+      "id": "cm5itm003ghi789def012",
+      "partId": "cm5prt123abc456xyz789",
+      "partNumber": "CAT-345-6789",
+      "description": "Hydraulic Cylinder Seal Kit",
+      "quantity": 2,
+      "unitPrice": 125.00,
+      "totalPrice": 250.00,
+      "availability": "IN_STOCK",
+      "fulfillmentMethod": "DELIVERY",
+      "estimatedDeliveryDays": 1,
+      "leadTime": 0,
+      "supplierPartNumber": "HEP-CAT-345-6789",
+      "category": "Seals & Gaskets",
+      "weight": 2.1,
+      "dimensions": {
+        "length": 8.0,
+        "width": 6.0,
+        "height": 2.0,
+        "unit": "inches"
+      }
+    }
+  ],
+
+  "orderDetails": {
+    "totalAmount": 4550.00,
+    "currency": "USD",
+    "paymentTerms": "Net 30",
+    "paymentMethod": "Invoice",
+    "pickupLocation": "Heavy Equipment Parts & Supply - Portland Warehouse, 1234 Industrial Blvd, Portland, OR 97201",
+    "pickupDate": "2025-12-31T09:00:00.000Z",
+    "pickupInstructions": "Please bring photo ID and order number. Items will be ready at the will-call counter.",
+    "shippingCarrier": "FedEx Freight",
+    "trackingNumber": "TRK-PENDING",
+    "shippingMethod": "Ground - Next Day",
+    "deliveryAddress": {
+      "street": "789 Main Street",
+      "city": "Seattle",
+      "state": "WA",
+      "zipCode": "98101",
+      "country": "USA"
+    },
+    "requestedDeliveryDate": "2026-01-02T17:00:00.000Z",
+    "estimatedDeliveryDate": "2026-01-02T17:00:00.000Z",
+    "notes": "This order is for our CAT 320 Excavator (Serial: CAT0320EL12345678) currently on the Aurora Bridge project site. Hydraulic system needs immediate repair.",
+    "specialInstructions": "FOR PICKUP ITEMS: Control valve (CAT-234-5678) will be picked up on Dec 31. FOR DELIVERY ITEMS: Please deliver hydraulic pump and seal kits to main office address. Contact Jane Doe at +1-555-0199 upon delivery.",
+    "purchaseOrderNumber": "ORD-2025-0001"
+  },
+
+  "timestamps": {
+    "orderDate": "2025-12-31T06:45:00.000Z",
+    "quoteApprovalDate": "2025-12-30T16:30:00.000Z",
+    "expectedFulfillmentDate": "2026-01-02T17:00:00.000Z"
+  }
+}

@@ -185,9 +185,9 @@ export async function updateQuoteRequest(
   return response;
 }
 
-export async function syncQuoteRequestThreads(id: string) {
-  const response = await apiRequest<{ 
-    success: boolean; 
+export async function syncQuoteRequestThreads(id: string, forceResync: boolean = false) {
+  const response = await apiRequest<{
+    success: boolean;
     data: any;
     summary: {
       totalSuppliers: number;
@@ -198,6 +198,7 @@ export async function syncQuoteRequestThreads(id: string) {
     };
   }>(`/api/quote-requests/${id}/sync-threads`, {
     method: 'POST',
+    body: JSON.stringify({ forceResync }),
   });
   return response;
 }
@@ -284,11 +285,16 @@ export async function sendQuoteRequestEmail(quoteRequestId: string, additionalSu
 }
 
 // Function to convert a quote request to an order
-export async function convertQuoteRequestToOrder(quoteRequestId: string) {
-  const response = await apiRequest<{ data: { orderId: string } }>(
+export async function convertQuoteRequestToOrder(
+  quoteRequestId: string,
+  payload?: { selectedSupplierId?: string }
+) {
+  const response = await apiRequest<{ data: { orderId: string; orderNumber: string } }>(
     `/api/quote-requests/${quoteRequestId}/convert-to-order`,
     {
       method: 'POST',
+      body: JSON.stringify(payload || {}),
+      timeout: 660000, // 11 minutes - allows for 10 minute webhook + 1 minute buffer
     }
   );
   return response;

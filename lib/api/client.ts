@@ -65,29 +65,32 @@ async function generateJwtToken(): Promise<string> {
 }
 
 /**
- * Make an authenticated API request
+ * Make an authenticated API request with optional timeout
  */
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit & { timeout?: number } = {}
 ): Promise<T> {
+  // Extract timeout from options (default 30 seconds, max 5 minutes)
+  const { timeout = 30000, ...fetchOptions } = options;
+
   // Check if this is an n8n webhook URL
   // Check if this is an n8n webhook URL with more reliable detection
   const isN8nWebhook = endpoint.includes('n8n') ||
                        endpoint.includes('webhook') ||
                        (process.env.N8N_BASE_URL && endpoint.includes(process.env.N8N_BASE_URL));
-  
+
   // Prepare headers with authentication
   let headersObj: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  
+
   // Copy existing headers if any
-  if (options.headers) {
-    const existingHeaders = options.headers as Record<string, string>;
+  if (fetchOptions.headers) {
+    const existingHeaders = fetchOptions.headers as Record<string, string>;
     headersObj = { ...headersObj, ...existingHeaders };
   }
-  
+
   // Add JWT token for n8n webhooks
   if (isN8nWebhook) {
     try {
@@ -99,60 +102,84 @@ export async function apiRequest<T>(
       console.error('Error adding JWT token to request:', error);
     }
   }
-  
+
   // Create final headers
   const headers = new Headers(headersObj);
 
   // Prepare the request
   const requestOptions: RequestInit = {
-    ...options,
+    ...fetchOptions,
     headers: headers,
   };
 
-  // Make the request
-  const response = await fetch(endpoint, requestOptions);
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  // Parse the response
-  let data;
   try {
-    const text = await response.text();
-    // Check if the response is empty
-    if (!text || text.trim() === '') {
-      console.warn('Empty response received');
-      data = {}; // Return empty object for empty responses
-    } else {
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('Error parsing JSON:', parseError);
-        console.error('Response text:', text);
-        throw {
-          error: 'Failed to parse response as JSON',
-          details: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
-          status: response.status,
-        };
+    // Make the request with timeout
+    const response = await fetch(endpoint, {
+      ...requestOptions,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    // Parse the response
+    let data;
+    try {
+      const text = await response.text();
+      // Check if the response is empty
+      if (!text || text.trim() === '') {
+        console.warn('Empty response received');
+        data = {}; // Return empty object for empty responses
+      } else {
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error('Error parsing JSON:', parseError);
+          console.error('Response text:', text);
+          throw {
+            error: 'Failed to parse response as JSON',
+            details: text.substring(0, 200) + (text.length > 200 ? '...' : ''),
+            status: response.status,
+          };
+        }
       }
+    } catch (error) {
+      console.error('Error reading response:', error);
+      throw {
+        error: 'Failed to read response',
+        details: response.statusText,
+        status: response.status,
+      };
     }
-  } catch (error) {
-    console.error('Error reading response:', error);
-    throw {
-      error: 'Failed to read response',
-      details: response.statusText,
-      status: response.status,
-    };
-  }
 
-  // Handle errors
-  if (!response.ok) {
-    const error: ApiError = {
-      error: data?.error || 'An unknown error occurred',
-      details: data?.details || response.statusText,
-      status: response.status,
-    };
+    // Handle errors
+    if (!response.ok) {
+      const error: ApiError = {
+        error: data?.error || 'An unknown error occurred',
+        details: data?.details || response.statusText,
+        status: response.status,
+      };
+      throw error;
+    }
+
+    return data as T;
+  } catch (error: any) {
+    // Handle timeout errors
+    if (error.name === 'AbortError') {
+      throw {
+        error: 'Request timeout',
+        details: `Request exceeded timeout of ${timeout}ms`,
+        status: 408,
+      };
+    }
+    // Re-throw other errors
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return data as T;
 }
 
 /**

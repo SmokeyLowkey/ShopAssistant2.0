@@ -13,13 +13,17 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    
+
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const params = await context.params;
     const quoteRequestId = params.id;
+
+    // Check if we should force a re-sync (delete and recreate all links)
+    const body = await req.json().catch(() => ({}));
+    const forceResync = body.forceResync === true;
 
     // Verify the user belongs to the organization that owns this quote request
     const user = await prisma.user.findUnique({
@@ -47,6 +51,13 @@ export async function POST(
 
     if (quoteRequest.organizationId !== user.organizationId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    // If forceResync is true, delete all existing links for this quote request
+    if (forceResync) {
+      await prisma.quoteRequestEmailThread.deleteMany({
+        where: { quoteRequestId },
+      });
     }
 
     // Get all suppliers (primary + additional)
@@ -83,24 +94,52 @@ export async function POST(
       errors: [] as any[],
     };
 
-    // Match email threads to suppliers
-    // Assumption: threads are created in the same order as suppliers were processed
-    for (let i = 0; i < suppliers.length && i < quoteRequest.emailThread.length; i++) {
-      const supplier = suppliers[i];
-      const emailThread = quoteRequest.emailThread[i];
+    // Get email threads with their outbound messages to match by recipient
+    const threadsWithMessages = await prisma.emailThread.findMany({
+      where: {
+        id: { in: quoteRequest.emailThread.map(t => t.id) },
+      },
+      include: {
+        messages: {
+          where: { direction: 'OUTBOUND' },
+          take: 1,
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    // Match email threads to suppliers by recipient email address
+    for (const supplier of suppliers) {
       const isPrimary = supplier.id === quoteRequest.supplierId;
 
       try {
-        // Check if link already exists
-        const existingLink = quoteRequest.emailThreads.find(
-          link => link.supplierId === supplier.id
-        );
+        // Check if link already exists (skip if forceResync since we deleted all links)
+        if (!forceResync) {
+          const existingLink = quoteRequest.emailThreads.find(
+            link => link.supplierId === supplier.id
+          );
 
-        if (existingLink) {
-          results.alreadyLinked.push({
+          if (existingLink) {
+            results.alreadyLinked.push({
+              supplierId: supplier.id,
+              supplierName: supplier.name,
+              emailThreadId: existingLink.emailThreadId,
+            });
+            continue;
+          }
+        }
+
+        // Find the email thread that was sent to this supplier by matching recipient email
+        const matchingThread = threadsWithMessages.find(thread => {
+          const outboundMessage = thread.messages[0];
+          return outboundMessage && outboundMessage.to?.includes(supplier.email || '');
+        });
+
+        if (!matchingThread) {
+          results.errors.push({
             supplierId: supplier.id,
             supplierName: supplier.name,
-            emailThreadId: existingLink.emailThreadId,
+            error: `No email thread found with recipient ${supplier.email}`,
           });
           continue;
         }
@@ -109,7 +148,7 @@ export async function POST(
         const link = await prisma.quoteRequestEmailThread.create({
           data: {
             quoteRequestId: quoteRequest.id,
-            emailThreadId: emailThread.id,
+            emailThreadId: matchingThread.id,
             supplierId: supplier.id,
             isPrimary,
             status: 'SENT',
@@ -135,7 +174,7 @@ export async function POST(
         results.linked.push({
           supplierId: supplier.id,
           supplierName: supplier.name,
-          emailThreadId: emailThread.id,
+          emailThreadId: matchingThread.id,
           isPrimary,
         });
       } catch (error) {

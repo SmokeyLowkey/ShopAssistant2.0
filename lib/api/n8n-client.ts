@@ -19,12 +19,12 @@ function extractWebhookResponseData<T>(response: any): T {
   // Handle different response formats
   if (Array.isArray(response) && response.length > 0) {
     console.log('Processing array response with length:', response.length);
-    
+
     // Format 1: Array with response.body structure
     if (response[0].response && response[0].response.body) {
       return response[0].response.body;
     }
-    
+
     // Format 2: Array with output containing JSON string
     if (response[0].output && typeof response[0].output === 'string') {
       try {
@@ -742,12 +742,13 @@ export interface OrderConfirmationResponse {
 export async function generateOrderConfirmationEmail(data: OrderConfirmationRequest): Promise<OrderConfirmationResponse> {
   const url = getWebhookUrl('ORDER_CONFIRMATION');
   if (!url) throw new Error('Order confirmation webhook URL not configured');
-  
+
   const response = await apiRequest<any>(url, {
     method: 'POST',
     body: JSON.stringify(data),
+    timeout: 600000, // 10 minutes timeout for order confirmation webhook (typically takes ~2 minutes)
   });
-  
+
   return extractWebhookResponseData<OrderConfirmationResponse>(response);
 }
 
@@ -870,4 +871,213 @@ export async function updatePartPrices(data: PriceUpdateRequest): Promise<PriceU
   
   // Extract the actual data from the response
   return extractWebhookResponseData<PriceUpdateResponse>(response);
+}
+
+// ============================================================================
+// POST ORDER WEBHOOK - Order Update Tracking System
+// ============================================================================
+
+/**
+ * Request payload for POST_ORDER_WEBHOOK
+ * Sends order details and email thread to N8N for parsing tracking updates
+ */
+export interface PostOrderWebhookRequest {
+  orderId: string;
+  orderNumber: string;
+  supplierId: string;
+  orderDate: string;
+  status: string;
+  totalAmount: number;
+  fulfillmentMethod: string;
+  currentTracking: {
+    trackingNumber?: string | null;
+    shippingCarrier?: string | null;
+    expectedDelivery?: string | null;
+  };
+  supplier: {
+    id: string;
+    name: string;
+    email: string;
+    contactPerson?: string | null;
+  };
+  emailThread: {
+    id: string;
+    messages: Array<{
+      id: string;
+      from: string;
+      to: string;
+      subject: string;
+      body: string;
+      sentAt: string;
+      direction: string;
+    }>;
+  };
+  items: Array<{
+    id: string;
+    partNumber: string;
+    description: string;
+    quantity: number;
+    availability?: string | null;
+    currentTracking?: {
+      trackingNumber?: string | null;
+      expectedDelivery?: string | null;
+    };
+  }>;
+  organization: {
+    id: string;
+    name: string;
+  };
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+/**
+ * Response from POST_ORDER_WEBHOOK
+ * Contains parsed tracking information and status updates
+ */
+export interface PostOrderWebhookResponse {
+  orderUpdates?: {
+    trackingNumber?: string;
+    shippingCarrier?: string;
+    expectedDelivery?: string;
+    status?: string;
+  };
+  itemUpdates?: Array<{
+    id: string;
+    trackingNumber?: string;
+    expectedDelivery?: string;
+    availability?: string;
+  }>;
+  supplierMessages?: Array<{
+    type: 'tracking' | 'delivery' | 'status' | 'other';
+    message: string;
+    timestamp?: string;
+  }>;
+  suggestedActions?: Array<{
+    action: string;
+    reason: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Calls N8N webhook to parse order updates from email thread
+ * Used for both manual "Sync Updates" and automatic email triggers
+ */
+export async function postOrderWebhook(
+  data: PostOrderWebhookRequest
+): Promise<PostOrderWebhookResponse> {
+  const url = getWebhookUrl('POST_ORDER');
+  if (!url) throw new Error('Post order webhook URL not configured');
+
+  console.log(`Sending post-order webhook request for order ${data.orderNumber}`);
+
+  const response = await apiRequest<any>(url, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  console.log(`Received post-order webhook response:`, JSON.stringify(response));
+
+  return extractWebhookResponseData<PostOrderWebhookResponse>(response);
+}
+
+// ============================================================================
+// ORDER FOLLOW-UP WEBHOOK - Order Follow-Up Email Generation
+// ============================================================================
+
+/**
+ * Order follow-up workflow branches
+ */
+export type OrderFollowUpBranch =
+  | 'no_confirmation'
+  | 'missing_tracking'
+  | 'delivery_delayed'
+  | 'quality_issue'
+  | 'other';
+
+/**
+ * Request payload for ORDER_FOLLOW_UP_WEBHOOK
+ */
+export interface OrderFollowUpRequest {
+  orderId: string;
+  orderNumber: string;
+  supplierId: string;
+  supplierName: string;
+  supplierEmail: string;
+  supplierContactPerson?: string | null;
+  orderDate: string;
+  status: string;
+  totalAmount: number;
+  trackingNumber?: string | null;
+  expectedDelivery?: string | null;
+  items: Array<{
+    partNumber: string;
+    description: string;
+    quantity: number;
+    availability?: string | null;
+  }>;
+  branch: OrderFollowUpBranch;
+  userMessage?: string;
+  expectedResponseDate?: string;
+  previousEmails: Array<{
+    from: string;
+    to: string;
+    subject: string;
+    body: string;
+    sentAt: string;
+  }>;
+  organization: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+/**
+ * Response from ORDER_FOLLOW_UP_WEBHOOK
+ */
+export interface OrderFollowUpResponse {
+  emailContent: {
+    subject: string;
+    body: string;
+    bodyHtml: string;
+  };
+  suggestedFollowUpDate?: string;
+  success: boolean;
+  message?: string;
+}
+
+/**
+ * Generates order follow-up email content via N8N
+ */
+export async function generateOrderFollowUpEmail(
+  data: OrderFollowUpRequest
+): Promise<OrderFollowUpResponse> {
+  const url = getWebhookUrl('ORDER_FOLLOW_UP');
+  if (!url) throw new Error('Order follow-up webhook URL not configured');
+
+  console.log(
+    `Generating order follow-up email for order ${data.orderNumber} (branch: ${data.branch})`
+  );
+
+  const response = await apiRequest<any>(url, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  console.log(`Received order follow-up response`);
+
+  return extractWebhookResponseData<OrderFollowUpResponse>(response);
 }

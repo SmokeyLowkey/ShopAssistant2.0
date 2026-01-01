@@ -1,8 +1,9 @@
 "use client";
 
-import { MapPin, Truck, Package, Calendar } from "lucide-react";
+import { MapPin, Truck, Package, Calendar, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { FulfillmentMethod, ItemAvailability } from "@prisma/client";
+import { generateTrackingLink, normalizeCarrierName } from "@/lib/utils/tracking-links";
 
 export interface OrderItemWithTracking {
   id: string;
@@ -118,11 +119,31 @@ export function TrackingInformation({ order, orderItems }: TrackingInfoProps) {
                 </p>
               )}
               
-              {order.trackingNumber && (
-                <p className="text-sm text-amber-200/80">
-                  Tracking Number: <span className="font-mono">{order.trackingNumber}</span>
-                </p>
-              )}
+              {order.trackingNumber && (() => {
+                const trackingLink = generateTrackingLink(
+                  order.trackingNumber,
+                  order.shippingCarrier ? normalizeCarrierName(order.shippingCarrier) : undefined
+                );
+                return (
+                  <p className="text-sm text-amber-200/80">
+                    Tracking Number:{" "}
+                    <a
+                      href={trackingLink.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-amber-300 hover:text-amber-100 underline inline-flex items-center gap-1"
+                    >
+                      {order.trackingNumber}
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                    {trackingLink.carrier !== 'UNKNOWN' && (
+                      <span className="ml-1 text-xs text-amber-200/60">
+                        (Track with {trackingLink.displayName})
+                      </span>
+                    )}
+                  </p>
+                );
+              })()}
               
               {order.expectedDelivery && (
                 <p className="text-sm text-amber-200/80">
@@ -169,11 +190,20 @@ export function TrackingInformation({ order, orderItems }: TrackingInfoProps) {
                       }>
                         {item.fulfillmentMethod || order.fulfillmentMethod}
                       </Badge>
-                      {item.trackingNumber && (
-                        <span className="text-xs text-slate-300 font-mono">
-                          Tracking: {item.trackingNumber}
-                        </span>
-                      )}
+                      {item.trackingNumber && (() => {
+                        const trackingLink = generateTrackingLink(item.trackingNumber);
+                        return (
+                          <a
+                            href={trackingLink.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-amber-300 hover:text-amber-100 font-mono underline inline-flex items-center gap-1"
+                          >
+                            Tracking: {item.trackingNumber}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="text-right text-sm text-slate-300">

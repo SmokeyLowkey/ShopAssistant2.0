@@ -3,20 +3,22 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  ArrowLeft, 
-  Package, 
-  Truck, 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Edit, 
-  Trash2, 
+import {
+  ArrowLeft,
+  Package,
+  Truck,
+  Calendar,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Edit,
+  Trash2,
   AlertTriangle,
   FileText,
   Mail,
-  InfoIcon
+  InfoIcon,
+  Loader2,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +30,9 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { TrackingInformation } from "@/components/ui/tracking-information";
 import { ThreadStatusControl } from "@/components/ui/thread-status-control";
 import { CommunicationTimeline } from "@/components/ui/communication-timeline";
+import { OrderFollowUpModal } from "@/components/ui/order-follow-up-modal";
+import { OrderFollowUpButton } from "@/components/ui/order-follow-up-button";
+import { toast } from "@/components/ui/use-toast";
 import { getOrder, formatCurrency, getOrderStatusLabel } from "@/lib/api";
 import { OrderStatus, FulfillmentMethod, ItemAvailability, EmailThreadStatus } from "@prisma/client";
 
@@ -87,6 +92,8 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emailThread, setEmailThread] = useState<any>(null);
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
+  const [syncingUpdates, setSyncingUpdates] = useState(false);
   
   useEffect(() => {
     const fetchOrderDetails = async () => {
@@ -133,7 +140,60 @@ export default function OrderDetailsPage() {
       });
     }
   };
-  
+
+  // Function to handle sync updates
+  const handleSyncUpdates = async () => {
+    try {
+      setSyncingUpdates(true);
+
+      const response = await fetch(`/api/orders/${orderId}/sync-updates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to sync updates');
+      }
+
+      const data = await response.json();
+
+      toast({
+        title: "Updates synced",
+        description: `Successfully synced ${data.updateCount} update(s)`,
+      });
+
+      // Refresh order data
+      const updatedOrder = await getOrder(orderId);
+      setOrder(updatedOrder);
+      setOrderData(updatedOrder as any);
+    } catch (error) {
+      console.error('Error syncing updates:', error);
+      toast({
+        title: "Sync failed",
+        description: "Failed to sync order updates. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingUpdates(false);
+    }
+  };
+
+  // Function to handle follow-up sent
+  const handleFollowUpSent = async () => {
+    // Refresh email thread
+    if (orderData?.emailThreadId) {
+      try {
+        const threadResponse = await fetch(`/api/email-threads/${orderData.emailThreadId}`);
+        if (threadResponse.ok) {
+          const threadData = await threadResponse.json();
+          setEmailThread(threadData);
+        }
+      } catch (error) {
+        console.error('Error refreshing email thread:', error);
+      }
+    }
+  };
+
   return (
     <AppLayout activeRoute="/orders">
       {/* Page Header */}
@@ -182,6 +242,25 @@ export default function OrderDetailsPage() {
               <div className="flex justify-between items-center">
                 <CardTitle className="text-white">Order Summary</CardTitle>
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSyncUpdates}
+                    disabled={syncingUpdates}
+                    className="text-blue-400 hover:bg-slate-700 hover:text-white"
+                  >
+                    {syncingUpdates ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Sync Updates
+                      </>
+                    )}
+                  </Button>
                   <Link href={`/orders/${orderId}/edit`}>
                     <Button variant="outline" size="sm" className="text-orange-600 hover:bg-slate-700 hover:text-white">
                       <Edit className="w-4 h-4 mr-2" />
@@ -283,7 +362,13 @@ export default function OrderDetailsPage() {
           {/* Fulfillment Information */}
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader className="border-b border-slate-700">
-              <CardTitle className="text-white">Fulfillment Information</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-white">Fulfillment Information</CardTitle>
+                <OrderFollowUpButton
+                  order={order}
+                  onClick={() => setFollowUpModalOpen(true)}
+                />
+              </div>
             </CardHeader>
             <CardContent className="p-6">
               <TrackingInformation order={order} orderItems={order.orderItems} />
@@ -400,13 +485,29 @@ export default function OrderDetailsPage() {
                 <CommunicationTimeline
                   emailThreadId={orderData.emailThreadId}
                   orderId={orderId}
-                  conversionDate={order.orderDate}
+                  conversionDate={(() => {
+                    console.log('=== PASSING TO TIMELINE ===');
+                    console.log('order.orderDate:', order.orderDate);
+                    console.log('order.createdAt:', order.createdAt);
+                    console.log('Using createdAt:', order.createdAt);
+                    return order.createdAt;
+                  })()}
                   onFollowUpClick={() => {}} // No follow-up needed for order communications
                 />
               </CardContent>
             </Card>
           )}
         </div>
+      )}
+
+      {/* Order Follow-Up Modal */}
+      {order && (
+        <OrderFollowUpModal
+          open={followUpModalOpen}
+          onOpenChange={setFollowUpModalOpen}
+          order={order}
+          onFollowUpSent={handleFollowUpSent}
+        />
       )}
     </AppLayout>
   );

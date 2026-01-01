@@ -57,6 +57,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AppLayout } from "@/components/layout/app-layout"
 
 // Form schema
 const quoteRequestFormSchema = z.object({
@@ -521,55 +522,58 @@ export default function QuoteRequestPage() {
   
 
   return (
-    <div className="container mx-auto py-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/orders">
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Orders
-            </Link>
-          </Button>
+    <AppLayout activeRoute="/orders">
+      <div className="flex items-center mb-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mr-4 text-slate-400 hover:text-white"
+          onClick={() => router.push("/orders")}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-white">Create Quote Request</h1>
+          <p className="text-slate-400">Request quotes from suppliers for parts and supplies</p>
         </div>
-        <h1 className="text-2xl font-bold">Create Quote Request</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quote Request Details</CardTitle>
-              <CardDescription>
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="border-b border-slate-700">
+              <CardTitle className="text-white">Quote Request Details</CardTitle>
+              <CardDescription className="text-slate-400">
                 Request quotes from suppliers for parts and supplies
               </CardDescription>
             </CardHeader>
             <CardContent>
               {isSendingEmail ? (
-                <div className="bg-blue-50 p-6 rounded-lg text-center">
-                  <Loader2 className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
-                  <h3 className="text-lg font-medium text-blue-800">Sending Quote Request Emails</h3>
-                  <p className="text-blue-600 mt-2 mb-4">
-                    Sending email to {emailProgress.current}...
-                  </p>
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                    <div
-                      className="bg-blue-600 h-2.5 rounded-full"
-                      style={{ width: `${(emailProgress.sent / emailProgress.total) * 100}%` }}
-                    ></div>
+                <div className="flex justify-center items-center p-12">
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-600 border-t-transparent"></div>
+                    <p className="text-sm text-slate-400">Sending email to {emailProgress.current}...</p>
+                    <div className="w-full max-w-md bg-slate-700 rounded-full h-2.5 mt-4">
+                      <div
+                        className="bg-orange-600 h-2.5 rounded-full"
+                        style={{ width: `${(emailProgress.sent / emailProgress.total) * 100}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      {emailProgress.sent} of {emailProgress.total} emails sent
+                    </p>
                   </div>
-                  <p className="text-sm text-blue-600">
-                    {emailProgress.sent} of {emailProgress.total} emails sent
-                  </p>
                 </div>
               ) : (
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                     {submitError && (
-                      <div className="bg-destructive/10 p-4 rounded-md flex items-start gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                      <div className="bg-red-900/20 p-4 rounded-md flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
                         <div>
-                          <p className="text-destructive font-medium">Error</p>
-                          <p className="text-destructive/80 text-sm">{submitError}</p>
+                          <p className="text-red-500 font-medium">Error</p>
+                          <p className="text-red-400 text-sm">{submitError}</p>
                         </div>
                       </div>
                     )}
@@ -580,7 +584,7 @@ export default function QuoteRequestPage() {
                         name="supplierIds"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Suppliers*</FormLabel>
+                            <FormLabel className="text-white">Suppliers*</FormLabel>
                             <div className="flex gap-2">
                               <Dialog open={showSupplierSelector} onOpenChange={setShowSupplierSelector}>
                                 <DialogTrigger asChild>
@@ -663,7 +667,7 @@ export default function QuoteRequestPage() {
                         name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Title*</FormLabel>
+                            <FormLabel className="text-white">Title*</FormLabel>
                             <FormControl>
                               <Input placeholder="Quote request title" {...field} />
                             </FormControl>
@@ -677,7 +681,7 @@ export default function QuoteRequestPage() {
                         name="description"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description</FormLabel>
+                            <FormLabel className="text-white">Description</FormLabel>
                             <FormControl>
                               <Textarea 
                                 placeholder="Provide a detailed description of what you're requesting" 
@@ -695,7 +699,7 @@ export default function QuoteRequestPage() {
                         name="vehicleId"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Vehicle*</FormLabel>
+                            <FormLabel className="text-white">Vehicle*</FormLabel>
                             <Select
                               value={field.value}
                               onValueChange={field.onChange}
@@ -736,7 +740,7 @@ export default function QuoteRequestPage() {
                         name="expiryDate"
                         render={({ field }) => (
                           <FormItem className="flex flex-col">
-                            <FormLabel>Expiry Date</FormLabel>
+                            <FormLabel className="text-white">Expiry Date</FormLabel>
                             <FormControl>
                               <Input
                                 type="date"
@@ -760,7 +764,7 @@ export default function QuoteRequestPage() {
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Notes</FormLabel>
+                            <FormLabel className="text-white">Notes</FormLabel>
                             <FormControl>
                               <Textarea 
                                 placeholder="Additional information for the supplier" 
@@ -848,9 +852,9 @@ export default function QuoteRequestPage() {
         </div>
 
         <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg font-medium">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 border-b border-slate-700">
+              <CardTitle className="text-lg font-medium text-white">
                 Quote Items
               </CardTitle>
               <div className="flex gap-2">
@@ -941,9 +945,9 @@ export default function QuoteRequestPage() {
             <CardContent>
               {items.length === 0 ? (
                 <div className="text-center py-8">
-                  <Package className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">No items added yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <Package className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-slate-400">No items added yet</p>
+                  <p className="text-xs text-slate-500 mt-1">
                     Add items from the parts page or use the Add Item button
                   </p>
                 </div>
@@ -952,19 +956,19 @@ export default function QuoteRequestPage() {
                   <div className="max-h-[400px] overflow-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Part</TableHead>
-                          <TableHead className="text-right">Qty</TableHead>
-                          <TableHead className="text-right">Price</TableHead>
+                        <TableRow className="border-slate-700">
+                          <TableHead className="text-slate-300">Part</TableHead>
+                          <TableHead className="text-right text-slate-300">Qty</TableHead>
+                          <TableHead className="text-right text-slate-300">Price</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {items.map((item, index) => (
-                          <TableRow key={index}>
+                          <TableRow key={index} className="border-slate-700">
                             <TableCell>
-                              <div className="font-medium">{item.partNumber}</div>
-                              <div className="text-xs text-muted-foreground">{item.description}</div>
+                              <div className="font-medium text-white">{item.partNumber}</div>
+                              <div className="text-xs text-slate-400">{item.description}</div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
@@ -987,7 +991,7 @@ export default function QuoteRequestPage() {
                                 </Button>
                               </div>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right text-white">
                               {item.unitPrice ? `$${item.unitPrice.toFixed(2)}` : "TBD"}
                             </TableCell>
                             <TableCell>
@@ -1006,17 +1010,17 @@ export default function QuoteRequestPage() {
                     </Table>
                   </div>
 
-                  <Separator />
+                  <Separator className="bg-slate-700" />
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between">
-                      <span className="text-sm">Subtotal</span>
-                      <span>${orderTotals.subtotal.toFixed(2)}</span>
+                      <span className="text-sm text-slate-400">Subtotal</span>
+                      <span className="text-white">${orderTotals.subtotal.toFixed(2)}</span>
                     </div>
-                    <Separator />
+                    <Separator className="bg-slate-700" />
                     <div className="flex justify-between font-medium">
-                      <span>Total</span>
-                      <span>${orderTotals.total.toFixed(2)}</span>
+                      <span className="text-slate-300">Total</span>
+                      <span className="text-orange-500 text-lg">${orderTotals.total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -1024,46 +1028,46 @@ export default function QuoteRequestPage() {
             </CardContent>
           </Card>
 
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="text-md font-medium">Quote Request Process</CardTitle>
+          <Card className="mt-6 bg-slate-800 border-slate-700">
+            <CardHeader className="border-b border-slate-700">
+              <CardTitle className="text-md font-medium text-white">Quote Request Process</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-1 mt-0.5">
-                    <span className="text-xs font-bold text-primary">1</span>
+                  <div className="bg-orange-600/10 rounded-full p-1 mt-0.5">
+                    <span className="text-xs font-bold text-orange-600">1</span>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium">Create Quote Request</h4>
-                    <p className="text-xs text-muted-foreground">Add items and select a supplier</p>
+                    <h4 className="text-sm font-medium text-white">Create Quote Request</h4>
+                    <p className="text-xs text-slate-400">Add items and select a supplier</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-1 mt-0.5">
-                    <span className="text-xs font-bold text-primary">2</span>
+                  <div className="bg-orange-600/10 rounded-full p-1 mt-0.5">
+                    <span className="text-xs font-bold text-orange-600">2</span>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium">Send to Supplier</h4>
-                    <p className="text-xs text-muted-foreground">Email the quote request to the supplier</p>
+                    <h4 className="text-sm font-medium text-white">Send to Supplier</h4>
+                    <p className="text-xs text-slate-400">Email the quote request to the supplier</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-1 mt-0.5">
-                    <span className="text-xs font-bold text-primary">3</span>
+                  <div className="bg-orange-600/10 rounded-full p-1 mt-0.5">
+                    <span className="text-xs font-bold text-orange-600">3</span>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium">Receive Quote</h4>
-                    <p className="text-xs text-muted-foreground">Supplier responds with pricing</p>
+                    <h4 className="text-sm font-medium text-white">Receive Quote</h4>
+                    <p className="text-xs text-slate-400">Supplier responds with pricing</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="bg-primary/10 rounded-full p-1 mt-0.5">
-                    <span className="text-xs font-bold text-primary">4</span>
+                  <div className="bg-orange-600/10 rounded-full p-1 mt-0.5">
+                    <span className="text-xs font-bold text-orange-600">4</span>
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium">Convert to Order</h4>
-                    <p className="text-xs text-muted-foreground">Approve the quote and create an order</p>
+                    <h4 className="text-sm font-medium text-white">Convert to Order</h4>
+                    <p className="text-xs text-slate-400">Approve the quote and create an order</p>
                   </div>
                 </div>
               </div>
@@ -1071,6 +1075,6 @@ export default function QuoteRequestPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }
